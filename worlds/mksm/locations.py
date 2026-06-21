@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from BaseClasses import Location, Region, LocationProgressType
 from .items import MKSMItem
+from .consts import CHARACTER_PURCHASE_AMOUNTS
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -132,7 +133,28 @@ REGION_NAME_LOCATIONS = {
         "F: koin from breaking the pipe with the axe": 80,
         "F: Kano defeated": 81,
         "F: Shao Kahn defeated": 82,
-    }
+    },
+    "Menu": {
+        "Purchase upgrade - Square 2": 83,
+        "Purchase upgrade - Square 3": 84,
+        "Purchase upgrade - Square 4": 85,
+        "Purchase upgrade - Triangle 2": 86,
+        "Purchase upgrade - Triangle 3": 87,
+        "Purchase upgrade - Triangle 4": 88,
+        "Purchase upgrade - Circle 2": 89,
+        "Purchase upgrade - Circle 3": 90,
+        "Purchase upgrade - Circle 4": 91,
+        "Purchase upgrade - Circle 5": 92,
+        "Purchase upgrade - R2 2": 93,
+        "Purchase upgrade - R2 3": 94,
+        "Purchase upgrade - R2 4": 95,
+        "Purchase upgrade - R2 5": 96,
+        "Purchase combo 1": 97,
+        "Purchase combo 2": 98,
+        "Purchase combo 3": 99,
+        "Purchase combo 4": 100,
+        "Purchase combo 5": 101,
+    },
 }
 
 LOCATION_NAME_TO_ID = {loc: loc_id for k, v in REGION_NAME_LOCATIONS.items() for loc, loc_id in v.items()}
@@ -144,6 +166,7 @@ class MKSMLocation(Location):
 
 def create_all_locations(world: MKSMWorld) -> None:
     create_region_locations(world)
+    create_purchase_locations(world)
     create_event_locations(world)
 
     world.get_location("GL: koin above the doorway").progress_type = LocationProgressType.EXCLUDED
@@ -152,8 +175,29 @@ def create_all_locations(world: MKSMWorld) -> None:
 
 def create_region_locations(world: MKSMWorld) -> None:
     for region_name in REGION_NAME_LOCATIONS:
-        region = world.get_region(region_name)
-        region.add_locations(REGION_NAME_LOCATIONS[region_name], MKSMLocation)
+        if not region_name == world.origin_region_name:
+            region = world.get_region(region_name)
+            region.add_locations(REGION_NAME_LOCATIONS[region_name], MKSMLocation)
+
+
+def create_purchase_locations(world: MKSMWorld) -> None:
+    menu = world.get_region(world.origin_region_name)
+    amounts = CHARACTER_PURCHASE_AMOUNTS[world.options.character.value]
+
+    combo_locs = {
+        f"Purchase combo {i + 1}": LOCATION_NAME_TO_ID[f"Purchase combo {i + 1}"]
+        for i in range(amounts.combo)
+    }
+
+    move_amounts = {"Square": amounts.square, "Triangle": amounts.triangle,
+                    "Circle": amounts.circle, "R2": amounts.r2}
+    move_locs = {
+        f"Purchase upgrade - {move} {i + 2}": LOCATION_NAME_TO_ID[f"Purchase upgrade - {move} {i + 2}"]
+        for move, amount in move_amounts.items()
+        for i in range(amount)
+    }
+
+    menu.add_locations({**combo_locs, **move_locs}, MKSMLocation)
 
 
 def create_event_locations(world: MKSMWorld) -> None:
@@ -170,6 +214,7 @@ def create_event_locations(world: MKSMWorld) -> None:
         item_name="Kitana defeated item",
         location_type=MKSMLocation,
         item_type=MKSMItem,
+        show_in_spoiler=False
     )
 
     forest_reptile.add_event(
@@ -177,6 +222,8 @@ def create_event_locations(world: MKSMWorld) -> None:
         item_name="Reptile defeated item",
         location_type=MKSMLocation,
         item_type=MKSMItem,
+        show_in_spoiler=False
+
     )
 
     tombs_baraka.add_event(
@@ -184,6 +231,8 @@ def create_event_locations(world: MKSMWorld) -> None:
         item_name="Baraka defeated item",
         location_type=MKSMLocation,
         item_type=MKSMItem,
+        show_in_spoiler=False
+
     )
 
     wasteland_3.add_event(
@@ -191,6 +240,8 @@ def create_event_locations(world: MKSMWorld) -> None:
         item_name="Goro defeated item",
         location_type=MKSMLocation,
         item_type=MKSMItem,
+        show_in_spoiler=False
+
     )
 
     netherrealm.add_event(
@@ -198,6 +249,8 @@ def create_event_locations(world: MKSMWorld) -> None:
         item_name="Scorpion defeated item",
         location_type=MKSMLocation,
         item_type=MKSMItem,
+        show_in_spoiler=False
+
     )
 
     foundry.add_event(
@@ -205,6 +258,8 @@ def create_event_locations(world: MKSMWorld) -> None:
         item_name="Shao Kahn defeated item",
         location_type=MKSMLocation,
         item_type=MKSMItem,
+        show_in_spoiler=False
+
     )
 
     dead_pool.add_event(
@@ -212,4 +267,6 @@ def create_event_locations(world: MKSMWorld) -> None:
         item_name="Dead Pool item",
         location_type=MKSMLocation,
         item_type=MKSMItem,
+        show_in_spoiler=False
+
     )

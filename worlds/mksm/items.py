@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from BaseClasses import Item, ItemClassification
+from .consts import CHARACTER_PURCHASE_AMOUNTS, HEALTH_UPGRADE_AMOUNT, BLOOD_BAR_AMOUNT
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -77,27 +78,16 @@ def create_all_items(world: MKSMWorld) -> None:
         world.create_item("Double Jump"),
     ]
 
-    # TODO: Different amount of combos per character
-    itempool += [
-        world.create_item("Combo 1"),
-        world.create_item("Combo 2"),
-        world.create_item("Combo 3"),
-        world.create_item("Combo 4"),
-        world.create_item("Combo 5"),
-    ]
+    amounts = CHARACTER_PURCHASE_AMOUNTS[world.options.character.value]
 
-    # TODO: Different amount of upgrades per character
-    square_upgrades = 3
-    triangle_upgrades = 3
-    circle_upgrades = 2
-    r2_upgrades = 4
-    itempool += [world.create_item("Square special upgrade") for _ in range(square_upgrades)]
-    itempool += [world.create_item("Triangle special upgrade") for _ in range(triangle_upgrades)]
-    itempool += [world.create_item("Circle special upgrade") for _ in range(circle_upgrades)]
-    itempool += [world.create_item("R2 special upgrade") for _ in range(r2_upgrades)]
+    itempool += [world.create_item(f"Combo {i + 1}") for i in range(amounts.combo)]
+    itempool += [world.create_item("Square special upgrade") for _ in range(amounts.square)]
+    itempool += [world.create_item("Triangle special upgrade") for _ in range(amounts.triangle)]
+    itempool += [world.create_item("Circle special upgrade") for _ in range(amounts.circle)]
+    itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2)]
 
-    itempool += [world.create_item("Health upgrade") for _ in range(4)]
-    itempool += [world.create_item("Blood bar") for _ in range(3)]
+    itempool += [world.create_item("Health upgrade") for _ in range(HEALTH_UPGRADE_AMOUNT)]
+    itempool += [world.create_item("Blood bar") for _ in range(BLOOD_BAR_AMOUNT)]
 
     number_of_unfilled_locations = len(world.multiworld.get_unfilled_locations(world.player))
     current_count = len(itempool)
@@ -108,7 +98,5 @@ def create_all_items(world: MKSMWorld) -> None:
 
     world.red_koin_amount = diff
     itempool += [world.create_item("Red Koin") for _ in range(diff)]
-
-    print(f"{len(itempool)=}")
 
     world.multiworld.itempool += itempool

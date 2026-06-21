@@ -8,8 +8,8 @@ class Character(Choice):
 
     option_liu_kang = 0
     option_kung_lao = 1
-    option_scorpion = 2
-    option_sub_zero = 3
+    option_sub_zero = 2
+    option_scorpion = 3
 
     default = option_liu_kang
 
