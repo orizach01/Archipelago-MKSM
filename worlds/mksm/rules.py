@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rule_builder.rules import Has, Rule
+from rule_builder.rules import Has, Rule, AtLeast
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -24,13 +24,51 @@ SCORPION = Has("Scorpion defeated item")
 SHAO_KAHN = Has("Shao Kahn defeated item")
 
 DEAD_POOL = Has("Dead Pool item")
-WU_SHI = Has("Wu-Shi item")
 
 
 def set_all_rules(world: MKSMWorld) -> None:
     set_all_location_rules(world)
     connect_regions(world)
     set_completion_condition(world)
+    set_purchase_rules(world)
+
+
+def set_purchase_rules(world: MKSMWorld) -> None:
+    tiers = {
+        0: [
+            "Purchase upgrade - Square 2",
+            "Purchase upgrade - Triangle 2",
+            "Purchase upgrade - Circle 2",
+            "Purchase upgrade - R2 2",
+        ],
+        1: [
+            "Purchase upgrade - Square 3",
+            "Purchase upgrade - Triangle 3",
+            "Purchase upgrade - Circle 3",
+            "Purchase upgrade - R2 3",
+            "Purchase combo 1",
+            "Purchase combo 2",
+        ],
+        2: [
+            "Purchase upgrade - Square 4",
+            "Purchase upgrade - Triangle 4",
+            "Purchase upgrade - Circle 4",
+            "Purchase upgrade - Circle 5",
+            "Purchase upgrade - R2 4",
+            "Purchase upgrade - R2 5",
+            "Purchase combo 3",
+            "Purchase combo 4",
+            "Purchase combo 5",
+        ],
+    }
+
+    for tier, loc_names in tiers.items():
+        for loc_name in loc_names:
+            try:
+                loc = world.get_location(loc_name)
+            except KeyError:
+                continue
+            world.set_rule(loc, AtLeast(tier, KITANA, REPTILE, BARAKA, SCORPION, GORO))
 
 
 def set_all_location_rules(world: MKSMWorld) -> None:
