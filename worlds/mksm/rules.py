@@ -39,7 +39,7 @@ def set_purchase_rules(world: MKSMWorld) -> None:
             "Purchase upgrade - Square 2",
             "Purchase upgrade - Triangle 2",
             "Purchase upgrade - Circle 2",
-            "Purchase upgrade - R2 2",
+            "Purchase upgrade - R2 2", #TODO: have client set R2 upgrade to 1
         ],
         1: [
             "Purchase upgrade - Square 3",
@@ -85,7 +85,6 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     world.set_rule(world.get_location("LF: koin behind the living tree"), DOUBLE_JUMP)
     world.set_rule(world.get_location("LF: Forest health upgrade"), WALL_CLIMB | DOUBLE_JUMP)
     world.set_rule(world.get_location("W: koin found on the lion statue"), DOUBLE_JUMP | WALL_RUN)
-    world.set_rule(world.get_location("W: koin found above the spike wheel"), WALL_RUN)
     world.set_rule(
         world.get_location("DP: koin from drowning enemies in both pools"),
         WALL_CLIMB | (WALL_JUMP & DOUBLE_JUMP)
