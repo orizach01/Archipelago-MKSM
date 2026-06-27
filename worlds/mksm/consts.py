@@ -30,7 +30,7 @@ class GameState(Enum):
 
 
 def _make_event(room: int, event: int):
-    return [room, 0, 0, 0, event, 0, 0, 0]
+    return tuple([room, 0, 0, 0, event, 0, 0, 0])
 
 
 CHARACTER_PURCHASE_AMOUNTS: dict[int, CharacterPurchaseAmounts] = {
@@ -161,8 +161,62 @@ ADDRESSES = {
         },
         "GAME_STATE": 0x5e1650,
         "TOTAL_EVENTS": 0xc2def0,
-        "EVENT_LOG_ARRAY": 0xc2a070
+        "XP": 0xc2e224,
+        "EVENT_LOG_ARRAY": 0xc2a070,
+        "PAUSE_FLAG": 0x4c49e8,
+        "SQUARE_UPGRADE": 0xc29844,
+        "TRIANGLE_UPGRADE": 0xc29845,
+        "CIRCLE_UPGRADE": 0xc29846,
+        "R2_UPGRADE": 0xc29847,
+
+        "WALL_CLIMB": 0xc29848,
+        "WALL_RUN": 0xc29849,
+        "WALL_JUMP": 0xc2984a,
+        "DOUBLE_JUMP": 0xc2984b,
+        "LONG_JUMP": 0xc2984c,
+        "SWING": 0xc2984d,
+        "FIST_OF_RUIN": 0xc2984e,
+
+        "COMBO_1": 0xc29851,
+        "COMBO_2": 0xc29852,
+        "COMBO_3": 0xc29853,
+        "COMBO_4": 0xc29854,
+        "COMBO_5": 0xc29855,
+
+        "HEALTH_UPGRADES": 0xc29760,
+        "MAX_HEALTH": (0xc29714, 0xc08930),
+        "CUR_HEALTH": 0xc08928,
+
+        "BLOOD_BAR": 0xc2e260,
     }
+}
+
+EVENTS_TO_LOCATION_NAME = {
+    _make_event(0x65, 0x11): "GL: Oni Warlord defeated",
+    _make_event(0x65, 0x12): "GL: long jump obtained",
+    _make_event(0x68, 0x6f): "WSA: wu-shi academy health upgrade",
+    _make_event(0x6c, 0x5e): "WSA: Ermac defeated",
+    _make_event(0x6a, 0x28): "WSA: wall run obtained",
+    _make_event(0xa0, 0x8a): "N: Scorpion defeated",
+    _make_event(0xa0, 0x8b): "N: Medallion from defeating Scorpion",
+    _make_event(0x89, 0x2d): "LF: Forest health upgrade",
+    _make_event(0x84, 0x48): "LF: Mileena defeated",
+    _make_event(0x90, 0x0e): "LF: Reptile defeated",
+    _make_event(0x90, 0x5a): "LF: climb obtained",
+    _make_event(0x30, 0x5c): "W: Kabal freed",
+    _make_event(0x21, 0x34): "W: Wasteland health upgrade",
+    _make_event(0x2c, 0x0e): "W: Sub-Zero defeated",
+    _make_event(0x2f, 0x05): "W: Goro defeated",
+    _make_event(0x2f, 0x0c): "W: Goro defeated",
+    _make_event(0x2f, 0x04): "W: Double jump obtained",
+    _make_event(0x88, 0x10): "DP: swing obtained",
+    _make_event(0x0f, 0x37): "ST: Baraka defeated",
+    _make_event(0x0f, 0x2b): "ST: wall jump obtained",
+    _make_event(0xc3, 0x3a): "EM: Kitana Mileena and Jade defeated",
+    _make_event(0xc3, 0x3e): "EM: Fist of Ruin obtained",
+    _make_event(0x48, 0x06): "F: Kano defeated",
+    _make_event(0x49, 0x06): "F: Shao Kahn defeated",
+
 }
 
 DEFAULT_EVENT_ARRAY = [

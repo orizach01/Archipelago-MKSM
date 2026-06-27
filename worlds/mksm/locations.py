@@ -47,7 +47,8 @@ REGION_NAME_LOCATIONS = {
     },
     "Netherrealm": {
         "N: koin above the arch": 20,
-        "N: Scorpion defeated": 21
+        "N: Scorpion defeated": 21,
+        "N: Medallion from defeating Scorpion": 200,
     },
     "Forest": {
         "LF: koin behind the breakable wall": 22,
@@ -55,15 +56,15 @@ REGION_NAME_LOCATIONS = {
         "LF: koin hidden behind the waterfall": 24,
         "LF: koin near the giant snake head": 25,
         "LF: koin from shooting the closed eye": 26,
-        "LF: Forest health upgrade": 27
+        "LF: Forest health upgrade": 27,
+        "LF: koin from breaking the fast statues": 28,
     },
     "Forest - Bridges": {
-        "LF: koin from shooting at dragon koin": 28,
-        "LF: koin from defeating Mileena": 29,
-        "LF: Mileena defeated": 30
+        "LF: koin from shooting at dragon koin": 29,
+        "LF: koin from defeating Mileena": 30,
+        "LF: Mileena defeated": 31
     },
     "Forest - Reptile arena": {
-        "LF: koin from breaking the fast statues": 31,
         "LF: Reptile defeated": 32,
         "LF: climb obtained": 33,
     },
@@ -149,11 +150,11 @@ REGION_NAME_LOCATIONS = {
         "Purchase upgrade - R2 3": 94,
         "Purchase upgrade - R2 4": 95,
         "Purchase upgrade - R2 5": 96,
-        "Purchase combo 1": 97,
-        "Purchase combo 2": 98,
-        "Purchase combo 3": 99,
-        "Purchase combo 4": 100,
-        "Purchase combo 5": 101,
+        "Purchase 1st combo": 97,
+        "Purchase 2nd combo": 98,
+        "Purchase 3rd combo": 99,
+        "Purchase 4th combo": 100,
+        "Purchase 5th combo": 101,
     },
 }
 
@@ -184,8 +185,10 @@ def create_purchase_locations(world: MKSMWorld) -> None:
     menu = world.get_region(world.origin_region_name)
     amounts = CHARACTER_PURCHASE_AMOUNTS[world.options.character.value]
 
+    prefixes = ["1st", "2nd", "3rd", "4th", "5th"]
+
     combo_locs = {
-        f"Purchase combo {i + 1}": LOCATION_NAME_TO_ID[f"Purchase combo {i + 1}"]
+        f"Purchase {prefixes[i]} combo": LOCATION_NAME_TO_ID[f"Purchase {prefixes[i]} combo"]
         for i in range(amounts.combo)
     }
 

@@ -15,10 +15,10 @@ import asyncio
 import sys
 
 # CommonClient import first to trigger ModuleUpdater
-from CommonClient import CommonContext, server_loop, get_base_parser, handle_url_arg, logger
+from CommonClient import CommonContext, server_loop, get_base_parser, handle_url_arg, logger, ClientCommandProcessor
 
 import Utils
-from worlds.mksm.consts import GameState
+from worlds.mksm.consts import GameState, DEFAULT_EVENT_ARRAY
 
 from .MKSMInterface import MKSMInterface
 from .callbacks import game_watcher as run_callbacks
@@ -26,16 +26,68 @@ from .callbacks import game_watcher as run_callbacks
 EMULATOR_RECONNECT_DELAY = 5  # seconds between PCSX2 connection attempts
 
 
+class MKSMCommandProcessor(ClientCommandProcessor):
+    ctx: MKSMContext
+
+    def _cmd_xp(self, value: str = "1000") -> bool:
+        """Add given xp
+        Usage: /xp   or   /xp 5000"""
+        ctx: MKSMContext = self.ctx
+        ctx.game_interface.add_xp(int(value))
+        self.output(f"Added {value} XP")
+        return True
+
+    def _cmd_health(self):
+        """
+        prints current health status
+        """
+        ctx: MKSMContext = self.ctx
+        print(ctx.game_interface.health_status())
+        return True
+
+    async def _cmd_removeevent(self) -> bool:
+        """removes last event in the event array, use in cases of softlocks if exited at wrong times,
+        use only on main menu"""
+        ctx: MKSMContext = self.ctx
+        if ctx.game_state != GameState.MAIN_MENU:
+            print("only use /removeevents on main menu")
+            return True
+
+        current_events = ctx.stored_data.get("EVENT_ARRAY")
+
+        if current_events == DEFAULT_EVENT_ARRAY:
+            print("no event to remove")
+            return True
+
+        await ctx.send_msgs([{"cmd": "Set",
+                              "key": "EVENT_ARRAY",
+                              "operations": [
+                                  {
+                                      "operation": "replace",
+                                      "value": current_events[:-8]
+                                  }
+                              ],
+                              }])
+
+        return True
+
+
 class MKSMContext(CommonContext):
     game = "Mortal Kombat: Shaolin Monks"
     items_handling = 0b111  # receive all items, even though we don't act on them yet
     want_slot_data = True
+    command_processor = MKSMCommandProcessor
+    game_interface: MKSMInterface
     game_state: GameState
     prev_state: GameState
     events_need_clear: bool
+    is_paused: bool
+    set_upgrades_in_pause: bool = False
+    health_upgrades: int = 0
 
     def __init__(self, server_address: str | None, password: str | None) -> None:
         super().__init__(server_address, password)
+        self.is_paused = False
         self.game_interface = MKSMInterface(logger)
         self.synced_koins = False  # set True after the one-time on-connect memory sync
         self.game_state = GameState.BOOTING
@@ -52,7 +104,7 @@ class MKSMContext(CommonContext):
 async def game_watcher(ctx: MKSMContext) -> None:
     while not ctx.exit_event.is_set():
         try:
-            await asyncio.wait_for(ctx.watcher_event.wait(), 1)
+            await asyncio.wait_for(ctx.watcher_event.wait(), 0.01)
         except asyncio.TimeoutError:
             pass
         ctx.watcher_event.clear()

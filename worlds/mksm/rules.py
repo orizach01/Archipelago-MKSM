@@ -35,30 +35,30 @@ def set_all_rules(world: MKSMWorld) -> None:
 
 def set_purchase_rules(world: MKSMWorld) -> None:
     tiers = {
-        0: [
+        1: [
             "Purchase upgrade - Square 2",
             "Purchase upgrade - Triangle 2",
             "Purchase upgrade - Circle 2",
-            "Purchase upgrade - R2 2", #TODO: have client set R2 upgrade to 1
+            "Purchase upgrade - R2 2",
+            "Purchase 1st combo",
         ],
-        1: [
+        2: [
             "Purchase upgrade - Square 3",
             "Purchase upgrade - Triangle 3",
             "Purchase upgrade - Circle 3",
             "Purchase upgrade - R2 3",
-            "Purchase combo 1",
-            "Purchase combo 2",
+            "Purchase 2nd combo",
+            "Purchase 3rd combo",
         ],
-        2: [
+        3: [
             "Purchase upgrade - Square 4",
             "Purchase upgrade - Triangle 4",
             "Purchase upgrade - Circle 4",
             "Purchase upgrade - Circle 5",
             "Purchase upgrade - R2 4",
             "Purchase upgrade - R2 5",
-            "Purchase combo 3",
-            "Purchase combo 4",
-            "Purchase combo 5",
+            "Purchase 4th combo",
+            "Purchase 5th combo",
         ],
     }
 
@@ -84,6 +84,7 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     world.set_rule(world.get_location("N: koin above the arch"), LONG_JUMP | DOUBLE_JUMP)
     world.set_rule(world.get_location("LF: koin behind the living tree"), DOUBLE_JUMP)
     world.set_rule(world.get_location("LF: Forest health upgrade"), WALL_CLIMB | DOUBLE_JUMP)
+    world.set_rule(world.get_location("LF: koin from breaking the fast statues"), REPTILE)
     world.set_rule(world.get_location("W: koin found on the lion statue"), DOUBLE_JUMP | WALL_RUN)
     world.set_rule(
         world.get_location("DP: koin from drowning enemies in both pools"),
@@ -138,9 +139,8 @@ def connect_regions(world: MKSMWorld) -> None:
     menu.connect(goros_lair_1)
 
     goros_lair_1.connect(goros_lair_boss)
-    goros_lair_boss.connect(goros_lair_1, rule=LONG_JUMP)
-    goros_lair_1.connect(goros_lair_2, rule=LONG_JUMP)
-    goros_lair_2.connect(goros_lair_1, rule=LONG_JUMP)
+    goros_lair_boss.connect(goros_lair_1, rule=LONG_JUMP | DOUBLE_JUMP)
+    goros_lair_1.connect(goros_lair_2, rule=LONG_JUMP | DOUBLE_JUMP)
     goros_lair_2.connect(goros_lair_boss)
     goros_lair_2.connect(wu_shi)
 
@@ -175,7 +175,7 @@ def connect_regions(world: MKSMWorld) -> None:
     wasteland_2.connect(wasteland_3, rule=DOUBLE_JUMP | WALL_RUN)
     wasteland_3.connect(wasteland_2)
     wasteland_2.connect(dead_pool, rule=GORO)
-    dead_pool.connect(portal_2)
+    dead_pool.connect(portal_2, rule=SWING | (DOUBLE_JUMP & WALL_JUMP & WALL_RUN))
     portal_2.connect(dead_pool, rule=DEAD_POOL)
 
     portal_1.connect(tombs, rule=WALL_CLIMB)
@@ -200,9 +200,8 @@ def connect_regions(world: MKSMWorld) -> None:
 
 
 def set_completion_condition(world: MKSMWorld) -> None:
-    # TODO: option for percentage
-    print(f"{world.red_koin_amount=}")
-    enough_red_koins = Has("Red Koin", count=int(0.8 * world.red_koin_amount))
+    percent = world.options.red_koin_need_percent.value
+    enough_red_koins = Has("Red Koin", count=int(world.red_koin_amount * percent / 100))
 
     world.set_completion_rule(
         enough_red_koins & SHAO_KAHN

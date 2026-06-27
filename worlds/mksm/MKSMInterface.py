@@ -2,7 +2,7 @@ import struct
 from logging import Logger
 from typing import Optional, Dict
 
-from .consts import ADDRESSES, GameState
+from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts
 
 from .pcsx2_interface.pine import Pine
 
@@ -75,6 +75,7 @@ class GameInterface:
             self.logger.info("Connected to PCSX2 Emulator")
         try:
             game_id = self.pcsx2_interface.get_game_id()
+            print(f"game_id: {game_id!r}")
             # The first read of the address will be null if the client is faster than the emulator
             self.current_game = None
             if game_id in ADDRESSES.keys():
@@ -157,17 +158,97 @@ class MKSMInterface(GameInterface):
         state_addr = self.addresses.get("GAME_STATE")
         return GameState(self._read8(state_addr))
 
-    def clear_event_log(self, event_data: bytes) -> bool:
-        print(event_data)
+    def is_paused(self) -> bool:
+        return bool(self._read8(self.addresses.get("PAUSE_FLAG")))
+
+    def clear_event_log(self, event_data: bytes) -> None:
+        # print(event_data)
 
         # total_bytes = total_events * 8
         # self._write_bytes(self.addresses.get("EVENT_LOG_ARRAY"), bytes([0] * total_bytes))
         self._write_bytes(self.addresses.get("EVENT_LOG_ARRAY"), event_data)
         self._write32(self.addresses.get("TOTAL_EVENTS"), len(event_data) // 8)
 
-        return False
-
     def get_event_block(self) -> bytes:
         total_events = self._read32(self.addresses.get("TOTAL_EVENTS"))
         total_bytes = total_events * 8
         return self._read_bytes(self.addresses.get("EVENT_LOG_ARRAY"), total_bytes)
+
+    def get_upgrade_amounts(self) -> CharacterPurchaseAmounts:
+        square = self._read8(self.addresses.get("SQUARE_UPGRADE"))
+        triangle = self._read8(self.addresses.get("TRIANGLE_UPGRADE"))
+        circle = self._read8(self.addresses.get("CIRCLE_UPGRADE"))
+        r2 = self._read8(self.addresses.get("R2_UPGRADE"))
+        combo = self._read8(self.addresses.get("COMBO_1"))
+        combo += self._read8(self.addresses.get("COMBO_2"))
+        combo += self._read8(self.addresses.get("COMBO_3"))
+        combo += self._read8(self.addresses.get("COMBO_4"))
+        combo += self._read8(self.addresses.get("COMBO_5"))
+
+        return CharacterPurchaseAmounts(square=square,
+                                        triangle=triangle,
+                                        circle=circle,
+                                        r2=r2,
+                                        combo=combo)
+
+    def set_move_upgrades(self, square: int, triangle: int, circle: int, r2: int):
+        # adding 1 because the game has the first upgrade already unlocked.
+        # setting upgrades to 0 prevents buying future upgrades.
+        self._write8(self.addresses.get("SQUARE_UPGRADE"), square + 1)
+        self._write8(self.addresses.get("TRIANGLE_UPGRADE"), triangle + 1)
+        self._write8(self.addresses.get("CIRCLE_UPGRADE"), circle + 1)
+        self._write8(self.addresses.get("R2_UPGRADE"), r2 + 1)
+
+    def set_combos(self, combo_1: bool, combo_2: bool, combo_3: bool, combo_4: bool, combo_5: bool):
+        self._write8(self.addresses.get("COMBO_1"), int(combo_1))
+        self._write8(self.addresses.get("COMBO_2"), int(combo_2))
+        self._write8(self.addresses.get("COMBO_3"), int(combo_3))
+        self._write8(self.addresses.get("COMBO_4"), int(combo_4))
+        self._write8(self.addresses.get("COMBO_5"), int(combo_5))
+
+    def set_abilities(self, wall_climb, wall_run, wall_jump, double_jump, long_jump, swing, fist_of_ruin):
+        self._write8(self.addresses.get("WALL_CLIMB"), wall_climb)
+        self._write8(self.addresses.get("WALL_RUN"), wall_run)
+        self._write8(self.addresses.get("WALL_JUMP"), wall_jump)
+        self._write8(self.addresses.get("DOUBLE_JUMP"), double_jump)
+        self._write8(self.addresses.get("LONG_JUMP"), long_jump)
+        self._write8(self.addresses.get("SWING"), swing)
+        self._write8(self.addresses.get("FIST_OF_RUIN"), fist_of_ruin)
+
+    def add_xp(self, xp_to_add):
+        addr = self.addresses.get("XP")
+        current_xp = self._read32(addr)
+        current_xp += xp_to_add
+        self._write32(addr, current_xp)
+
+    def set_health_upgrades(self, health_upgrades: int) -> None:
+        max_health = health_upgrades * 100 + 200
+        health_upgrades_addr = self.addresses.get("HEALTH_UPGRADES")
+
+        max_health_addr_1, max_health_addr_2 = self.addresses.get("MAX_HEALTH")
+
+        self._write8(health_upgrades_addr, health_upgrades)
+        self._write32(max_health_addr_1, max_health)
+        self._write32(max_health_addr_2, max_health)
+
+    def health_status(self) -> str:
+        health_upgrades_addr = self.addresses.get("HEALTH_UPGRADES")
+        cur_health_addr = self.addresses.get("CUR_HEALTH")
+        max_health_addr_1, max_health_addr_2 = self.addresses.get("MAX_HEALTH")
+
+        health_upgrades = self._read8(health_upgrades_addr)
+        cur_health = self._read32(cur_health_addr)
+        max_health_addr_1 = self._read32(max_health_addr_1)
+        max_health_addr_2 = self._read32(max_health_addr_2)
+
+        return f"{health_upgrades=}, {cur_health=}, {max_health_addr_1=}, {max_health_addr_2=}"
+
+    def set_full_health(self, health_upgrades):
+        cur_health_addr = self.addresses.get("CUR_HEALTH")
+        max_health = health_upgrades * 100 + 200
+
+        self._write32(cur_health_addr, max_health)
+
+    def set_blood_bar(self, blood_bar):
+        blood_bar_addr = self.addresses.get("BLOOD_BAR")
+        self._write8(blood_bar_addr, blood_bar)
