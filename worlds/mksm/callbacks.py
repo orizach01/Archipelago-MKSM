@@ -30,10 +30,10 @@ async def game_watcher(ctx: MKSMContext) -> None:
         return  # not connected to the emulator/game yet
 
     read_game_state(ctx)
-    ctx.events_need_clear = ctx.game_state == GameState.MAIN_MENU
     ctx.is_paused = ctx.game_interface.is_paused()
     clear_events(ctx)
 
+    set_character(ctx)
     set_move_upgrades(ctx)
     set_abilities(ctx)
     set_health_upgrades(ctx)
@@ -53,7 +53,6 @@ def clear_events(ctx: MKSMContext):
     if ctx.prev_state == GameState.MAIN_MENU and ctx.game_state in (GameState.LOADING, GameState.INTRO_FMV):
         # print(f"{ctx.stored_data["EVENT_ARRAY"] == DEFAULT_EVENT_ARRAY=}")
         ctx.game_interface.clear_event_log(bytes(ctx.stored_data["EVENT_ARRAY"] or DEFAULT_EVENT_ARRAY))
-        ctx.events_need_clear = False
 
 
 async def update_events_in_server(ctx: MKSMContext) -> None:
@@ -283,3 +282,8 @@ async def check_completed_game(ctx: MKSMContext):
     if current >= needed and beat_final_boss:
         await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
         ctx.finished_game = True
+
+
+def set_character(ctx: MKSMContext) -> None:
+    character_option = ctx.slot_data["character"]
+    ctx.game_interface.set_character(character_option)

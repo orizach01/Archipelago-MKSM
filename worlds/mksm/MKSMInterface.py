@@ -2,7 +2,7 @@ import struct
 from logging import Logger
 from typing import Optional, Dict
 
-from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts
+from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME
 
 from .pcsx2_interface.pine import Pine
 
@@ -274,3 +274,8 @@ class MKSMInterface(GameInterface):
         new_fmt = [ord(have_1), ord(have_2), 0x20, 0x2f, 0x20, ord(total_1), ord(total_2), 0x0]
         fmt_addr = self.addresses.get("KOIN_FORMAT_STRING")
         self._write_bytes(fmt_addr, bytes(new_fmt))
+
+    def set_character(self, current_character_option):
+        character_value = CHARACTER_OPTION_TO_VALUE_IN_GAME[current_character_option]
+        character_addr = self.addresses.get("CURRENT_CHARACTER")
+        self._write8(character_addr, character_value)

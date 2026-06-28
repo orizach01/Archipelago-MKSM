@@ -192,6 +192,8 @@ ADDRESSES = {
         "CURRENT_ANIMATION": 0x5e6b64,
 
         "KOIN_FORMAT_STRING": 0x5777b8,
+
+        "CURRENT_CHARACTER": 0xc2974c,
     }
 }
 
@@ -289,4 +291,12 @@ ANIMATIONS_TO_LOCATION_NAME = {
     0x855: "Perform Spear Slice (Fatality)",
     0x857: "Perform Raise Hell (Multality)",
     0x863: "Perform Searing Blade (Brutality)",
+}
+
+CHARACTER_OPTION_TO_VALUE_IN_GAME = {
+    Character.option_liu_kang: 0x00,
+    Character.option_kung_lao: 0x01,
+    Character.option_sub_zero: 0x58,
+    Character.option_scorpion: 0x52,
+
 }

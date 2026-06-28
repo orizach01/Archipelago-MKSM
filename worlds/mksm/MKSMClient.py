@@ -80,7 +80,6 @@ class MKSMContext(CommonContext):
     game_interface: MKSMInterface
     game_state: GameState
     prev_state: GameState
-    events_need_clear: bool
     is_paused: bool
     set_upgrades_in_pause: bool = False
     health_upgrades: int = 0
@@ -92,7 +91,6 @@ class MKSMContext(CommonContext):
         self.synced_koins = False  # set True after the one-time on-connect memory sync
         self.game_state = GameState.BOOTING
         self.prev_state = GameState.BOOTING
-        self.events_need_clear = True
         self.slot_data = None
 
     async def server_auth(self, password_requested: bool = False) -> None:
