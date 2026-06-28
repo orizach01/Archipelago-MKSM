@@ -37,13 +37,13 @@ async def game_watcher(ctx: MKSMContext) -> None:
     set_abilities(ctx)
     set_health_upgrades(ctx)
     set_blood_bar(ctx)
-    set_xp_items(ctx)
     update_koin_counter(ctx)
 
     await check_move_upgrades(ctx)
     await sync_red_koins(ctx)
     await update_events_in_server(ctx)
     await update_xp_in_server(ctx)
+    await set_xp_items(ctx)
     await check_red_koins(ctx)
     await check_events(ctx)
     await check_finishing_moves(ctx)
@@ -316,13 +316,28 @@ def set_character(ctx: MKSMContext) -> None:
     ctx.game_interface.set_character(character_option)
 
 
-def set_xp_items(ctx: MKSMContext) -> None:
+async def set_xp_items(ctx: MKSMContext) -> None:
     if not ctx.game_state == GameState.GAMEPLAY:
         return
 
     xp_items = sum(item.item == ITEM_NAME_TO_ID["5000 XP"] for item in ctx.items_received)
+    # stored_data is the cross-restart source of truth; ctx.xp_items_given is an
+    # optimistic same-session cache so we don't re-grant while a Set is still in flight.
+    xp_items_given = max(ctx.stored_data.get("XP_ITEMS_GIVEN") or 0, ctx.xp_items_given)
 
-    if xp_items != ctx.xp_items_given:
-        delta = xp_items - ctx.xp_items_given
-        ctx.game_interface.add_xp(delta * 5000)
-        ctx.xp_items_given = xp_items
+    if xp_items == xp_items_given:
+        return
+
+    delta = xp_items - xp_items_given
+    ctx.game_interface.add_xp(delta * 5000)
+    ctx.xp_items_given = xp_items
+
+    await ctx.send_msgs([{"cmd": "Set",
+                          "key": "XP_ITEMS_GIVEN",
+                          "operations": [
+                              {
+                                  "operation": "replace",
+                                  "value": xp_items
+                              }
+                          ],
+                          }])

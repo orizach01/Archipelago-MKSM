@@ -141,6 +141,7 @@ async def main(args) -> None:
 
     ctx.set_notify("EVENT_ARRAY")
     ctx.set_notify("CURRENT_XP")
+    ctx.set_notify("XP_ITEMS_GIVEN")
     watcher_task = asyncio.create_task(game_watcher(ctx), name="MKSMGameWatcher")
 
     await ctx.exit_event.wait()
