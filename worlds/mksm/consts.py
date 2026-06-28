@@ -188,6 +188,10 @@ ADDRESSES = {
         "CUR_HEALTH": 0xc08928,
 
         "BLOOD_BAR": 0xc2e260,
+
+        "CURRENT_ANIMATION": 0x5e6b64,
+
+        "KOIN_FORMAT_STRING": 0x5777b8,
     }
 }
 
@@ -244,3 +248,45 @@ DEFAULT_EVENT_ARRAY = [
     *_make_event(0x8e, 0x29),
     *_make_event(0x8e, 0x42),
 ]
+
+ANIMATIONS_TO_LOCATION_NAME = {
+    # Liu Kang:
+    0x14e: "Perform Shaolin Soccer (Fatality)",
+    0x150: "Perform Bonebreak Combo (Fatality)",
+    0x152: "Perform Head Clap (Fatality)",
+    0x154: "Perform Giant Stomp (Fatality)",
+    0x156: "Perform Fire Kick Combo (Fatality)",
+    0x158: "Perform Flipping Uppercut (Fatality)",
+    0x15a: "Perform Dragon (Fatality)",
+    0x15c: "Perform Arm Rip (Fatality)",
+    0x160: "Perform Fire Trails (Multality)",
+    0x161: "Perform Dragon Fury (Multality)",
+    0x165: "Perform Rage Mode (Brutality)",
+
+    # Kung Lao:
+    0x1f0: "Perform Body Slice (Fatality)",
+    0x1f2: "Perform Mid Air Slice (Fatality)",
+    0x1f7: "Perform Friendly Rabit (Fatality)",
+    0x1f4: "Perform Tornado (Multality)",
+    0x1f6: "Perform Hat Control (Multality)",
+    0x1f9: "Perform Arm Cutter (Fatality)",
+    0x1fb: "Perform Head Toss (Fatality)",
+    0x1fd: "Perform Unfriendly Rabbit (Hidden Fatality)",
+    0x1ff: "Perform Many Chops (Fatality)",
+    0x201: "Perform Headache (Fatality)",
+    0x203: "Perform Buzzsaw (Fatality)",
+    0x200: "Perform Razor Edge (Brutality)",
+
+    # Sub-Zero:
+    0xa5f: "Perform Spine Rip (Fatality)",
+    0xa61: "Perform Snowball (Fatality)",
+    0xa63: "Perform Freeze Uppercut (Fatality)",
+    0xa65: "Perform Ice Stomp (Multality)",
+    0xa69: "Perform Frostbite Rage (Brutality)",
+
+    # Scorpion:
+    0x853: "Perform Flame (Fatality)",
+    0x855: "Perform Spear Slice (Fatality)",
+    0x857: "Perform Raise Hell (Multality)",
+    0x863: "Perform Searing Blade (Brutality)",
+}

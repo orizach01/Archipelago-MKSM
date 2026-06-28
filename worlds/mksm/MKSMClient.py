@@ -93,12 +93,17 @@ class MKSMContext(CommonContext):
         self.game_state = GameState.BOOTING
         self.prev_state = GameState.BOOTING
         self.events_need_clear = True
+        self.slot_data = None
 
     async def server_auth(self, password_requested: bool = False) -> None:
         if password_requested and not self.password:
             await super().server_auth(password_requested)
         await self.get_username()
         await self.send_connect()
+
+    def on_package(self, cmd: str, args: dict) -> None:
+        if cmd == "Connected":
+            self.slot_data = args.get("slot_data", {})
 
 
 async def game_watcher(ctx: MKSMContext) -> None:

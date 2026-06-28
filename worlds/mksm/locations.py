@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from BaseClasses import Location, Region, LocationProgressType
 from .items import MKSMItem
+from .options import Character
 from .consts import CHARACTER_PURCHASE_AMOUNTS
 
 if TYPE_CHECKING:
@@ -158,7 +159,51 @@ REGION_NAME_LOCATIONS = {
     },
 }
 
+FINISHING_MOVES_LOCATIONS = {
+    Character.option_liu_kang: {
+        "Perform Shaolin Soccer (Fatality)": 500,
+        "Perform Bonebreak Combo (Fatality)": 501,
+        "Perform Head Clap (Fatality)": 502,
+        "Perform Giant Stomp (Fatality)": 503,
+        "Perform Fire Kick Combo (Fatality)": 504,
+        "Perform Flipping Uppercut (Fatality)": 505,
+        "Perform Dragon (Fatality)": 506,
+        "Perform Arm Rip (Fatality)": 507,
+        "Perform Fire Trails (Multality)": 508,
+        "Perform Dragon Fury (Multality)": 509,
+        "Perform Rage Mode (Brutality)": 510,
+    },
+    Character.option_kung_lao: {
+        "Perform Body Slice (Fatality)": 511,
+        "Perform Mid Air Slice (Fatality)": 512,
+        "Perform Friendly Rabit (Fatality)": 513,
+        "Perform Tornado (Multality)": 514,
+        "Perform Hat Control (Multality)": 515,
+        "Perform Arm Cutter (Fatality)": 516,
+        "Perform Head Toss (Fatality)": 517,
+        "Perform Unfriendly Rabbit (Hidden Fatality)": 518,
+        "Perform Many Chops (Fatality)": 519,
+        "Perform Headache (Fatality)": 520,
+        "Perform Buzzsaw (Fatality)": 521,
+        "Perform Razor Edge (Brutality)": 522,
+    },
+    Character.option_sub_zero: {
+        "Perform Spine Rip (Fatality)": 523,
+        "Perform Snowball (Fatality)": 524,
+        "Perform Freeze Uppercut (Fatality)": 525,
+        "Perform Ice Stomp (Multality)": 526,
+        "Perform Frostbite Rage (Brutality)": 527,
+    },
+    Character.option_scorpion: {
+        "Perform Flame (Fatality)": 528,
+        "Perform Spear Slice (Fatality)": 529,
+        "Perform Raise Hell (Multality)": 530,
+        "Perform Searing Blade (Brutality)": 531,
+    }
+}
+
 LOCATION_NAME_TO_ID = {loc: loc_id for k, v in REGION_NAME_LOCATIONS.items() for loc, loc_id in v.items()}
+LOCATION_NAME_TO_ID |= {loc: loc_id for k, v in FINISHING_MOVES_LOCATIONS.items() for loc, loc_id in v.items()}
 
 
 class MKSMLocation(Location):
@@ -168,6 +213,7 @@ class MKSMLocation(Location):
 def create_all_locations(world: MKSMWorld) -> None:
     create_region_locations(world)
     create_purchase_locations(world)
+    create_finishing_moves_locations(world)
     create_event_locations(world)
 
     world.get_location("GL: koin above the doorway").progress_type = LocationProgressType.EXCLUDED
@@ -201,6 +247,13 @@ def create_purchase_locations(world: MKSMWorld) -> None:
     }
 
     menu.add_locations({**combo_locs, **move_locs}, MKSMLocation)
+
+
+def create_finishing_moves_locations(world: MKSMWorld) -> None:
+    menu = world.get_region(world.origin_region_name)
+    current_character = world.options.character.value
+
+    menu.add_locations(FINISHING_MOVES_LOCATIONS[current_character], MKSMLocation)
 
 
 def create_event_locations(world: MKSMWorld) -> None:

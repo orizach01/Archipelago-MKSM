@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rule_builder.rules import Has, Rule, AtLeast
+from .locations import FINISHING_MOVES_LOCATIONS
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -14,7 +15,9 @@ WALL_CLIMB: Rule = Has("Wall Climb")
 SWING: Rule = Has("Swing")
 LONG_JUMP: Rule = Has("Long Jump")
 FIST_OF_RUIN: Rule = Has("Fist of Ruin")
-FATALITY: Rule = Has("Blood bar")
+FATALITY: Rule = Has("Blood bar", count=1)
+MULTALITY: Rule = Has("Blood bar", count=2)
+BRUTALITY: Rule = Has("Blood bar", count=3)
 
 KITANA = Has("Kitana defeated item")
 REPTILE = Has("Reptile defeated item")
@@ -31,6 +34,7 @@ def set_all_rules(world: MKSMWorld) -> None:
     connect_regions(world)
     set_completion_condition(world)
     set_purchase_rules(world)
+    set_finishing_moves_rules(world)
 
 
 def set_purchase_rules(world: MKSMWorld) -> None:
@@ -197,6 +201,23 @@ def connect_regions(world: MKSMWorld) -> None:
     )
 
     foundry.connect(portal_2)
+
+
+def set_finishing_moves_rules(world: MKSMWorld) -> None:
+    flattened_dict = {loc: loc_id for k, v in FINISHING_MOVES_LOCATIONS.items() for loc, loc_id in v.items()}
+    for loc_name in flattened_dict.keys():
+
+        try:
+            loc = world.get_location(loc_name)
+        except KeyError:
+            continue
+
+        if "Fatality" in loc_name:
+            world.set_rule(loc, FATALITY)
+        elif "Multality" in loc_name:
+            world.set_rule(loc, MULTALITY)
+        elif "Brutality" in loc_name:
+            world.set_rule(loc, BRUTALITY)
 
 
 def set_completion_condition(world: MKSMWorld) -> None:

@@ -132,6 +132,15 @@ class MKSMInterface(GameInterface):
     def _mask(bits: list[int]) -> int:
         return sum(1 << b for b in bits)
 
+    @staticmethod
+    def _split_num_to_two_digits(num: int):
+        assert len(str(num)) <= 2
+
+        second = str(num)[-1]
+        first = str(num)[-2] if len(str(num)) == 2 else '0'
+
+        return first, second
+
     def clear_uncollected_red_koins(self, checked_names: set[str]) -> None:
         """Zero out every red koin's bits in game memory except for the ones in
         `checked_names`. Used once on connect so a stale save state (leftover
@@ -252,3 +261,16 @@ class MKSMInterface(GameInterface):
     def set_blood_bar(self, blood_bar):
         blood_bar_addr = self.addresses.get("BLOOD_BAR")
         self._write8(blood_bar_addr, blood_bar)
+
+    def get_current_animation(self) -> int:
+        animation_addr = self.addresses.get("CURRENT_ANIMATION")
+        return self._read32(animation_addr)
+
+    def set_koin_string(self, have, total):
+        have_1, have_2 = self._split_num_to_two_digits(have)
+        total_1, total_2 = self._split_num_to_two_digits(total)
+        #                 %      d   space  /    space  %     d     NULL
+        # orginal_fmt = [0x25, 0x64, 0x20, 0x2f, 0x20, 0x25, 0x64, 0x0]
+        new_fmt = [ord(have_1), ord(have_2), 0x20, 0x2f, 0x20, ord(total_1), ord(total_2), 0x0]
+        fmt_addr = self.addresses.get("KOIN_FORMAT_STRING")
+        self._write_bytes(fmt_addr, bytes(new_fmt))

@@ -10,7 +10,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME
+from NetUtils import ClientStatus
+from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 
@@ -20,11 +21,15 @@ if TYPE_CHECKING:
 
 async def game_watcher(ctx: MKSMContext) -> None:
     """Called once per tick by the client's main loop."""
+    # TODO force character
+    # TODO red koin cmd
+    # TODO debug cmd
+    # TODO change filler to be XP
+    # TODO have xp in the server and update when loading game
     if ctx.game_interface.current_game is None:
         return  # not connected to the emulator/game yet
 
     read_game_state(ctx)
-
     ctx.events_need_clear = ctx.game_state == GameState.MAIN_MENU
     ctx.is_paused = ctx.game_interface.is_paused()
     clear_events(ctx)
@@ -33,12 +38,15 @@ async def game_watcher(ctx: MKSMContext) -> None:
     set_abilities(ctx)
     set_health_upgrades(ctx)
     set_blood_bar(ctx)
+    update_koin_counter(ctx)
 
     await check_move_upgrades(ctx)
     await sync_red_koins(ctx)
     await update_events_in_server(ctx)
     await check_red_koins(ctx)
     await check_events(ctx)
+    await check_finishing_moves(ctx)
+    await check_completed_game(ctx)
 
 
 def clear_events(ctx: MKSMContext):
@@ -55,7 +63,6 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
     current_events = list(ctx.game_interface.get_event_block())
     if current_events == ctx.stored_data.get("EVENT_ARRAY"):
         return  # already in sync with the server, nothing to push
-    print("sending events to server")
     await ctx.send_msgs([{"cmd": "Set",
                           "key": "EVENT_ARRAY",
                           "operations": [
@@ -244,3 +251,35 @@ def set_blood_bar(ctx: MKSMContext):
     blood_bar = min(blood_bar, 3)
 
     ctx.game_interface.set_blood_bar(blood_bar)
+
+
+async def check_finishing_moves(ctx: MKSMContext) -> None:
+    animation = ctx.game_interface.get_current_animation()
+
+    if animation not in ANIMATIONS_TO_LOCATION_NAME:
+        return
+
+    loc_name = ANIMATIONS_TO_LOCATION_NAME[animation]
+    await ctx.check_locations([LOCATION_NAME_TO_ID[loc_name]])
+
+
+def update_koin_counter(ctx):
+    total = ctx.slot_data["red_koin_amount"]
+    needed = int(total * ctx.slot_data["red_koin_need_percent"] / 100)
+    current = sum(item.item == ITEM_NAME_TO_ID["Red Koin"] for item in ctx.items_received)
+
+    current = min(current, 99)
+    needed = min(needed, 99)
+
+    ctx.game_interface.set_koin_string(current, needed)
+
+
+async def check_completed_game(ctx: MKSMContext):
+    total = ctx.slot_data["red_koin_amount"]
+    needed = int(total * ctx.slot_data["red_koin_need_percent"] / 100)
+    current = sum(item.item == ITEM_NAME_TO_ID["Red Koin"] for item in ctx.items_received)
+    beat_final_boss = LOCATION_NAME_TO_ID["F: Shao Kahn defeated"] in ctx.checked_locations
+
+    if current >= needed and beat_final_boss:
+        await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
+        ctx.finished_game = True
