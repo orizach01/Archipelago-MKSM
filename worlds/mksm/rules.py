@@ -161,7 +161,7 @@ def connect_regions(world: MKSMWorld) -> None:
     portal_1.connect(portal_2)
     portal_2.connect(portal_1)
 
-    portal_2.connect(netherrealm, rule=SWING & (WALL_RUN | DOUBLE_JUMP))
+    portal_2.connect(netherrealm, rule=SWING)
 
     netherrealm.connect(portal_2)
 
