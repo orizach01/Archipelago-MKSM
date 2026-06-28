@@ -28,7 +28,7 @@ ITEM_NAME_TO_ID = {
     "Red Koin": 17,
     "Health upgrade": 18,
     "Blood bar": 19,
-    "Filler": 20,
+    "5000 XP": 20,
 }
 
 DEFAULT_ITEM_CLASSIFICATIONS = {
@@ -51,7 +51,7 @@ DEFAULT_ITEM_CLASSIFICATIONS = {
     "Red Koin": ItemClassification.progression_deprioritized_skip_balancing,
     "Health upgrade": ItemClassification.filler,
     "Blood bar": ItemClassification.progression_deprioritized_skip_balancing,
-    "Filler": ItemClassification.filler,
+    "5000 XP": ItemClassification.filler,
 }
 
 
@@ -60,7 +60,7 @@ class MKSMItem(Item):
 
 
 def get_random_filler_item_name(world: MKSMWorld) -> str:
-    return "Filler"
+    return "5000 XP"
 
 
 def create_item_with_correct_classification(world: MKSMWorld, name: str) -> MKSMItem:
@@ -96,7 +96,11 @@ def create_all_items(world: MKSMWorld) -> None:
 
     diff = number_of_unfilled_locations - current_count
 
-    world.red_koin_amount = diff
-    itempool += [world.create_item("Red Koin") for _ in range(diff)]
+    xp_filler_count = diff // 4
+    red_koin_count = diff - xp_filler_count
+
+    world.red_koin_amount = red_koin_count
+    itempool += [world.create_item("Red Koin") for _ in range(red_koin_count)]
+    itempool += [world.create_item("5000 XP") for _ in range(xp_filler_count)]
 
     world.multiworld.itempool += itempool

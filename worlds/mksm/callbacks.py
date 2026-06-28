@@ -37,6 +37,7 @@ async def game_watcher(ctx: MKSMContext) -> None:
     set_abilities(ctx)
     set_health_upgrades(ctx)
     set_blood_bar(ctx)
+    set_xp_items(ctx)
     update_koin_counter(ctx)
 
     await check_move_upgrades(ctx)
@@ -313,3 +314,15 @@ async def check_completed_game(ctx: MKSMContext):
 def set_character(ctx: MKSMContext) -> None:
     character_option = ctx.slot_data["character"]
     ctx.game_interface.set_character(character_option)
+
+
+def set_xp_items(ctx: MKSMContext) -> None:
+    if not ctx.game_state == GameState.GAMEPLAY:
+        return
+
+    xp_items = sum(item.item == ITEM_NAME_TO_ID["5000 XP"] for item in ctx.items_received)
+
+    if xp_items != ctx.xp_items_given:
+        delta = xp_items - ctx.xp_items_given
+        ctx.game_interface.add_xp(delta * 5000)
+        ctx.xp_items_given = xp_items

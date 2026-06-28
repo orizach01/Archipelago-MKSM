@@ -83,6 +83,7 @@ class MKSMContext(CommonContext):
     is_paused: bool
     set_upgrades_in_pause: bool = False
     health_upgrades: int = 0
+    xp_items_given: int = 0
 
     def __init__(self, server_address: str | None, password: str | None) -> None:
         super().__init__(server_address, password)
