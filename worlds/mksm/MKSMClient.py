@@ -18,7 +18,7 @@ import sys
 from CommonClient import CommonContext, server_loop, get_base_parser, handle_url_arg, logger, ClientCommandProcessor
 
 import Utils
-from worlds.mksm.consts import GameState, DEFAULT_EVENT_ARRAY
+from worlds.mksm.consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME
 
 from .MKSMInterface import MKSMInterface
 from .callbacks import game_watcher as run_callbacks
@@ -45,9 +45,29 @@ class MKSMCommandProcessor(ClientCommandProcessor):
         print(ctx.game_interface.health_status())
         return True
 
+    def _cmd_events(self, n: str = "5") -> bool:
+        """prints the current room and the last n events in the game's live event log
+        Usage: /events   or   /events 10"""
+        ctx: MKSMContext = self.ctx
+        current_events = list(ctx.game_interface.get_event_block())
+        events = [tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)]
+
+        if not events:
+            self.output("event log is empty")
+            return True
+
+        self.output(f"current room: {hex(events[-1][0])}")
+
+        for event in events[-int(n):]:
+            room, event_code = event[0], event[4]
+            location_name = EVENTS_TO_LOCATION_NAME.get(event, "<unmapped>")
+            self.output(f"room={hex(room)} event={hex(event_code)} ({location_name})")
+
+        return True
+
     async def _cmd_removeevent(self) -> bool:
-        """removes last event in the event array, use in cases of softlocks if exited at wrong times,
-        use only on main menu"""
+        """removes all events from the room the last event happened in, use in cases of
+        softlocks if exited at wrong times, use only on main menu"""
         ctx: MKSMContext = self.ctx
         if ctx.game_state != GameState.MAIN_MENU:
             print("only use /removeevents on main menu")
@@ -55,16 +75,47 @@ class MKSMCommandProcessor(ClientCommandProcessor):
 
         current_events = ctx.stored_data.get("EVENT_ARRAY")
 
-        if current_events == DEFAULT_EVENT_ARRAY:
+        if not current_events or current_events == DEFAULT_EVENT_ARRAY:
             print("no event to remove")
             return True
+
+        events = [tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)]
+        last_room = events[-1][0]
+        remaining_events = [event for event in events if event[0] != last_room]
+        new_array = [byte for event in remaining_events for byte in event]
 
         await ctx.send_msgs([{"cmd": "Set",
                               "key": "EVENT_ARRAY",
                               "operations": [
                                   {
                                       "operation": "replace",
-                                      "value": current_events[:-8]
+                                      "value": new_array
+                                  }
+                              ],
+                              }])
+
+        return True
+
+    async def _cmd_default(self) -> bool:
+        """adds the default event array's entries back into the current event array
+        (without removing anything already there)"""
+        ctx: MKSMContext = self.ctx
+
+        current_events = list(ctx.stored_data.get("EVENT_ARRAY") or [])
+        existing = {tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)}
+        default_events = [tuple(DEFAULT_EVENT_ARRAY[i:i + 8]) for i in range(0, len(DEFAULT_EVENT_ARRAY), 8)]
+
+        missing_events = [event for event in default_events if event not in existing]
+        new_array = current_events + [byte for event in missing_events for byte in event]
+
+        ctx.game_interface.clear_event_log(bytes(new_array))
+
+        await ctx.send_msgs([{"cmd": "Set",
+                              "key": "EVENT_ARRAY",
+                              "operations": [
+                                  {
+                                      "operation": "replace",
+                                      "value": new_array
                                   }
                               ],
                               }])
@@ -84,6 +135,7 @@ class MKSMContext(CommonContext):
     set_upgrades_in_pause: bool = False
     health_upgrades: int = 0
     xp_items_given: int = 0
+    first_loop: bool
 
     def __init__(self, server_address: str | None, password: str | None) -> None:
         super().__init__(server_address, password)
@@ -93,6 +145,7 @@ class MKSMContext(CommonContext):
         self.game_state = GameState.BOOTING
         self.prev_state = GameState.BOOTING
         self.slot_data = None
+        self.first_loop = True
 
     async def server_auth(self, password_requested: bool = False) -> None:
         if password_requested and not self.password:

@@ -11,7 +11,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from NetUtils import ClientStatus
-from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME
+from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
+    ROOM_EVENT_GATES
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 
@@ -54,14 +55,34 @@ async def game_watcher(ctx: MKSMContext) -> None:
     await check_finishing_moves(ctx)
     await check_completed_game(ctx)
 
+    if ctx.first_loop:
+        print("first loop finished")
+        ctx.first_loop = False
+
 
 def clear_events(ctx: MKSMContext):
-    if ctx.prev_state == GameState.MAIN_MENU and ctx.game_state in (GameState.LOADING, GameState.INTRO_FMV):
-        ctx.game_interface.clear_event_log(bytes(ctx.stored_data["EVENT_ARRAY"] or DEFAULT_EVENT_ARRAY))
+    if not ctx.game_state == GameState.GAMEPLAY:
+        server_array = list(ctx.stored_data["EVENT_ARRAY"] or DEFAULT_EVENT_ARRAY)
+
+        # a still-gated room's event can be sitting in live memory without having made it
+        # into the server's array yet (update_events_in_server withholds it until its gate
+        # opens) - preserve it here instead of stomping it with the server's array, or it
+        # gets erased before the gate ever gets a chance to open.
+        live_events_raw = list(ctx.game_interface.get_event_block())
+        live_events = [tuple(live_events_raw[i:i + 8]) for i in range(0, len(live_events_raw), 8)]
+        server_events = {tuple(server_array[i:i + 8]) for i in range(0, len(server_array), 8)}
+
+        pending_gated_events = [
+            event for event in live_events
+            if event[0] in ROOM_EVENT_GATES and event not in server_events
+        ]
+
+        restored = server_array + [byte for event in pending_gated_events for byte in event]
+        ctx.game_interface.clear_event_log(bytes(restored))
 
 
 def clear_xp(ctx: MKSMContext) -> None:
-    if ctx.prev_state == GameState.MAIN_MENU and ctx.game_state in (GameState.LOADING, GameState.INTRO_FMV):
+    if ctx.game_state != GameState.GAMEPLAY:
         ctx.game_interface.set_xp(ctx.stored_data["CURRENT_XP"] or 0)
 
 
@@ -70,14 +91,29 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
         return
 
     current_events = list(ctx.game_interface.get_event_block())
-    if current_events == ctx.stored_data.get("EVENT_ARRAY"):
+    events = [tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)]
+
+    # withhold a gated room's events from the server (and thus from EVENT_ARRAY, and thus
+    # from ever being replayed back into game memory by clear_events) until its gate is
+    # satisfied - see ROOM_EVENT_GATES.
+    open_gated_rooms = {
+        room for room, (gate_room, gate_event) in ROOM_EVENT_GATES.items()
+        if any(event[0] == gate_room and (gate_event is None or event[4] == gate_event) for event in events)
+    }
+    filtered_events = [
+        event for event in events
+        if event[0] not in ROOM_EVENT_GATES or event[0] in open_gated_rooms
+    ]
+    filtered_array = [byte for event in filtered_events for byte in event]
+
+    if filtered_array == ctx.stored_data.get("EVENT_ARRAY"):
         return  # already in sync with the server, nothing to push
     await ctx.send_msgs([{"cmd": "Set",
                           "key": "EVENT_ARRAY",
                           "operations": [
                               {
                                   "operation": "replace",
-                                  "value": current_events
+                                  "value": filtered_array
                               }
                           ],
                           }])
@@ -112,7 +148,7 @@ async def sync_red_koins(ctx: MKSMContext) -> None:
     server state: clears every red koin's bits in game memory except for the
     locations the AP server already considers checked. See
     MKSMInterface.clear_uncollected_red_koins for why."""
-    if ctx.prev_state == GameState.MAIN_MENU and ctx.game_state in (GameState.LOADING, GameState.INTRO_FMV):
+    if ctx.game_state != GameState.GAMEPLAY:
         koin_names = ctx.game_interface.addresses.get("RED_KOINS", {}).keys()
         checked_names = {name for name in koin_names if LOCATION_NAME_TO_ID[name] in ctx.checked_locations}
         ctx.game_interface.clear_uncollected_red_koins(checked_names)
@@ -252,6 +288,7 @@ def set_abilities(ctx: MKSMContext) -> None:
 async def check_events(ctx: MKSMContext) -> None:
     if not ctx.game_state == GameState.GAMEPLAY:
         return
+
     checked_events = set()
     current_events = list(ctx.game_interface.get_event_block())
     for i in range(0, len(current_events), 8):
@@ -324,6 +361,9 @@ def set_character(ctx: MKSMContext) -> None:
 async def set_xp_items(ctx: MKSMContext) -> None:
     if not ctx.game_state == GameState.GAMEPLAY:
         return
+
+    if "XP_ITEMS_GIVEN" not in ctx.stored_data:
+        return  # initial value hasn't come back from the server yet - don't re-grant on a guess
 
     xp_items = sum(item.item == ITEM_NAME_TO_ID["5000 XP"] for item in ctx.items_received)
     # stored_data is the cross-restart source of truth; ctx.xp_items_given is an

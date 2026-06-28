@@ -225,6 +225,18 @@ EVENTS_TO_LOCATION_NAME = {
 
 }
 
+# Some rooms have event bytes that can show up in the event log before the real story
+# event has actually happened (stale/leftover log entries). For a room listed here, no
+# event from that room is saved to the server until its gate is satisfied. A gate is a
+# (gate_room, gate_event) pair: if gate_event is None, any event from gate_room satisfies
+# it; otherwise that exact room/event pair must show up (gate_room may be the same as the
+# gated room itself).
+ROOM_EVENT_GATES: dict[int, tuple[int, int | None]] = {
+    0xa0: (0xa0, 0x8b),  # N: don't trust this room's events until the Scorpion medallion event fires
+    0x2c: (0x2d, None),  # W: don't trust this room's events until any event from the next room fires
+    0x60: (0x61, None),  # don't trust this room's events until any event from the next room fires
+}
+
 DEFAULT_EVENT_ARRAY = [
     # skip fatality event
     *_make_event(0x63, 0x15),
@@ -249,6 +261,8 @@ DEFAULT_EVENT_ARRAY = [
     *_make_event(0x8e, 0x24),
     *_make_event(0x8e, 0x29),
     *_make_event(0x8e, 0x42),
+    *_make_event(0x8e, 0x41),
+    *_make_event(0x8e, 0x26),
 ]
 
 ANIMATIONS_TO_LOCATION_NAME = {

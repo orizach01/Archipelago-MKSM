@@ -79,7 +79,7 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     world.set_rule(world.get_location("GL: koin above the doorway"), DOUBLE_JUMP | WALL_JUMP)
     world.set_rule(world.get_location("GL: koin above the breakable door"), DOUBLE_JUMP | WALL_JUMP)
     world.set_rule(world.get_location("WSA: koin after the tree branch swing"), SWING | DOUBLE_JUMP)
-    world.set_rule(world.get_location("WSA: koin after the bamboo swing"), SWING)
+    world.set_rule(world.get_location("WSA: koin after the bamboo swing"), SWING | (WALL_RUN & DOUBLE_JUMP))
     world.set_rule(
         world.get_location("WSA: koin on a high wall near the lava pots"),
         WALL_RUN & WALL_JUMP & DOUBLE_JUMP
