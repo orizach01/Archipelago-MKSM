@@ -221,10 +221,20 @@ def create_all_locations(world: MKSMWorld) -> None:
 
 
 def create_region_locations(world: MKSMWorld) -> None:
+    can_shoot_moon = world.options.character.value in (Character.option_liu_kang, Character.option_kung_lao)
+
     for region_name in REGION_NAME_LOCATIONS:
         if not region_name == world.origin_region_name:
             region = world.get_region(region_name)
-            region.add_locations(REGION_NAME_LOCATIONS[region_name], MKSMLocation)
+            region_locations = REGION_NAME_LOCATIONS[region_name]
+
+            if not can_shoot_moon:
+                region_locations = {
+                    name: loc_id for name, loc_id in region_locations.items()
+                    if name != "GL: koin from shooting the moon"
+                }
+
+            region.add_locations(region_locations, MKSMLocation)
 
 
 def create_purchase_locations(world: MKSMWorld) -> None:

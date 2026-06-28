@@ -23,7 +23,12 @@ async def game_watcher(ctx: MKSMContext) -> None:
     """Called once per tick by the client's main loop."""
     # TODO red koin cmd
     # TODO debug cmd
-    # TODO change filler to be XP
+    # TODO deathlink
+    # TODO "GL: koin from shooting the moon" is excluded from the world for Sub-Zero/Scorpion
+    #      seeds (see locations.create_region_locations), but MKSMInterface/consts.RED_KOINS
+    #      still watches its memory address unconditionally. If it's ever flagged collected on
+    #      a non-Liu-Kang/Kung-Lao seed, check_red_koins would try to check_locations() an id
+    #      that doesn't exist in that world. Guard this if it ever turns out to be reachable.
     if ctx.game_interface.current_game is None:
         return  # not connected to the emulator/game yet
 
