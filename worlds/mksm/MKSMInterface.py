@@ -279,3 +279,11 @@ class MKSMInterface(GameInterface):
         character_value = CHARACTER_OPTION_TO_VALUE_IN_GAME[current_character_option]
         character_addr = self.addresses.get("CURRENT_CHARACTER")
         self._write8(character_addr, character_value)
+
+    def get_current_xp(self) -> int:
+        addr = self.addresses.get("XP")
+        return self._read32(addr)
+
+    def set_xp(self, xp: int) -> None:
+        addr = self.addresses.get("XP")
+        self._write32(addr, xp)

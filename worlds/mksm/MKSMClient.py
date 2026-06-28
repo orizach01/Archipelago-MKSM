@@ -139,6 +139,7 @@ async def main(args) -> None:
     ctx.run_cli()
 
     ctx.set_notify("EVENT_ARRAY")
+    ctx.set_notify("CURRENT_XP")
     watcher_task = asyncio.create_task(game_watcher(ctx), name="MKSMGameWatcher")
 
     await ctx.exit_event.wait()

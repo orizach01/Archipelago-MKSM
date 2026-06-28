@@ -21,17 +21,16 @@ if TYPE_CHECKING:
 
 async def game_watcher(ctx: MKSMContext) -> None:
     """Called once per tick by the client's main loop."""
-    # TODO force character
     # TODO red koin cmd
     # TODO debug cmd
     # TODO change filler to be XP
-    # TODO have xp in the server and update when loading game
     if ctx.game_interface.current_game is None:
         return  # not connected to the emulator/game yet
 
     read_game_state(ctx)
     ctx.is_paused = ctx.game_interface.is_paused()
     clear_events(ctx)
+    clear_xp(ctx)
 
     set_character(ctx)
     set_move_upgrades(ctx)
@@ -43,6 +42,7 @@ async def game_watcher(ctx: MKSMContext) -> None:
     await check_move_upgrades(ctx)
     await sync_red_koins(ctx)
     await update_events_in_server(ctx)
+    await update_xp_in_server(ctx)
     await check_red_koins(ctx)
     await check_events(ctx)
     await check_finishing_moves(ctx)
@@ -51,8 +51,12 @@ async def game_watcher(ctx: MKSMContext) -> None:
 
 def clear_events(ctx: MKSMContext):
     if ctx.prev_state == GameState.MAIN_MENU and ctx.game_state in (GameState.LOADING, GameState.INTRO_FMV):
-        # print(f"{ctx.stored_data["EVENT_ARRAY"] == DEFAULT_EVENT_ARRAY=}")
         ctx.game_interface.clear_event_log(bytes(ctx.stored_data["EVENT_ARRAY"] or DEFAULT_EVENT_ARRAY))
+
+
+def clear_xp(ctx: MKSMContext) -> None:
+    if ctx.prev_state == GameState.MAIN_MENU and ctx.game_state in (GameState.LOADING, GameState.INTRO_FMV):
+        ctx.game_interface.set_xp(ctx.stored_data["CURRENT_XP"] or 0)
 
 
 async def update_events_in_server(ctx: MKSMContext) -> None:
@@ -68,6 +72,23 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
                               {
                                   "operation": "replace",
                                   "value": current_events
+                              }
+                          ],
+                          }])
+
+
+async def update_xp_in_server(ctx: MKSMContext) -> None:
+    if not ctx.game_state == GameState.GAMEPLAY:
+        return
+
+    current_xp = ctx.game_interface.get_current_xp()
+
+    await ctx.send_msgs([{"cmd": "Set",
+                          "key": "CURRENT_XP",
+                          "operations": [
+                              {
+                                  "operation": "replace",
+                                  "value": current_xp
                               }
                           ],
                           }])
@@ -92,6 +113,9 @@ async def sync_red_koins(ctx: MKSMContext) -> None:
 
 
 async def check_red_koins(ctx: MKSMContext) -> None:
+    if not ctx.game_state == GameState.GAMEPLAY:
+        return
+
     checked_names = ctx.game_interface.get_checked_red_koins()
     if not checked_names:
         return
@@ -220,6 +244,8 @@ def set_abilities(ctx: MKSMContext) -> None:
 
 
 async def check_events(ctx: MKSMContext) -> None:
+    if not ctx.game_state == GameState.GAMEPLAY:
+        return
     checked_events = set()
     current_events = list(ctx.game_interface.get_event_block())
     for i in range(0, len(current_events), 8):
