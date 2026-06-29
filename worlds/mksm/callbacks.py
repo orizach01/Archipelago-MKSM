@@ -25,6 +25,7 @@ async def game_watcher(ctx: MKSMContext) -> None:
     # TODO red koin cmd
     # TODO debug cmd
     # TODO deathlink
+    # TODO close gracefully
     # TODO "GL: koin from shooting the moon" is excluded from the world for Sub-Zero/Scorpion
     #      seeds (see locations.create_region_locations), but MKSMInterface/consts.RED_KOINS
     #      still watches its memory address unconditionally. If it's ever flagged collected on
@@ -62,6 +63,9 @@ async def game_watcher(ctx: MKSMContext) -> None:
 
 def clear_events(ctx: MKSMContext):
     if not ctx.game_state == GameState.GAMEPLAY:
+        if "EVENT_ARRAY" not in ctx.stored_data:
+            return  # haven't heard back from the server yet - don't guess
+
         server_array = list(ctx.stored_data["EVENT_ARRAY"] or DEFAULT_EVENT_ARRAY)
 
         # a still-gated room's event can be sitting in live memory without having made it
@@ -83,6 +87,8 @@ def clear_events(ctx: MKSMContext):
 
 def clear_xp(ctx: MKSMContext) -> None:
     if ctx.game_state != GameState.GAMEPLAY:
+        if "CURRENT_XP" not in ctx.stored_data:
+            return  # haven't heard back from the server yet - don't zero it on a guess
         ctx.game_interface.set_xp(ctx.stored_data["CURRENT_XP"] or 0)
 
 
@@ -106,8 +112,17 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
     ]
     filtered_array = [byte for event in filtered_events for byte in event]
 
-    if filtered_array == ctx.stored_data.get("EVENT_ARRAY"):
+    server_array = ctx.stored_data.get("EVENT_ARRAY") or []
+    if filtered_array == server_array:
         return  # already in sync with the server, nothing to push
+
+    if len(filtered_array) < len(server_array):
+        # the live event log only ever grows during real play - a shrink means we just read
+        # a spurious/incomplete event block (e.g. right after an emulator reset zeroed it out
+        # before the game finished booting), not real lost progress. Never push that to the
+        # server, or it permanently erases everything already recorded.
+        return
+
     await ctx.send_msgs([{"cmd": "Set",
                           "key": "EVENT_ARRAY",
                           "operations": [
@@ -124,6 +139,14 @@ async def update_xp_in_server(ctx: MKSMContext) -> None:
         return
 
     current_xp = ctx.game_interface.get_current_xp()
+    server_xp = ctx.stored_data.get("CURRENT_XP") or 0
+
+    if current_xp == 0 and server_xp > 0:
+        # spending xp on upgrades legitimately lowers it, so a drop alone isn't suspicious -
+        # but a hard drop to exactly 0 means we just read a spurious/incomplete value (e.g.
+        # right after an emulator reset zeroed it before the game finished booting), not a
+        # real purchase. Never push that to the server.
+        return
 
     await ctx.send_msgs([{"cmd": "Set",
                           "key": "CURRENT_XP",
