@@ -2,7 +2,8 @@ import struct
 from logging import Logger
 from typing import Optional, Dict
 
-from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME
+from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
+    NO_DEBUG
 
 from .pcsx2_interface.pine import Pine
 
@@ -181,7 +182,17 @@ class MKSMInterface(GameInterface):
     def get_event_block(self) -> bytes:
         total_events = self._read32(self.addresses.get("TOTAL_EVENTS"))
         total_bytes = total_events * 8
-        return self._read_bytes(self.addresses.get("EVENT_LOG_ARRAY"), total_bytes)
+        raw = self._read_bytes(self.addresses.get("EVENT_LOG_ARRAY"), total_bytes)
+
+        # TOTAL_EVENTS occasionally reads back garbage/oversized (e.g. a boot/reset race) -
+        # no real room is ever 0x0, so a trailing run of all-zero 8-byte records means the
+        # count lied about the array's real length, not that those events actually happened.
+        # Trim them here so every caller of get_event_block gets a sane buffer, instead of
+        # treating that padding as real event-log growth and pushing it to the server.
+        trimmed = len(raw)
+        while trimmed >= 8 and raw[trimmed - 8:trimmed] == b"\x00" * 8:
+            trimmed -= 8
+        return raw[:trimmed]
 
     def get_upgrade_amounts(self) -> CharacterPurchaseAmounts:
         square = self._read8(self.addresses.get("SQUARE_UPGRADE"))
@@ -287,3 +298,14 @@ class MKSMInterface(GameInterface):
     def set_xp(self, xp: int) -> None:
         addr = self.addresses.get("XP")
         self._write32(addr, xp)
+
+    def toggle_debug_menu(self) -> None:
+        debug_1, debug_2 = self.addresses.get("DEBUG_MENU")
+        current_1, current_2 = self._read32(debug_1), self._read32(debug_2)
+
+        if (current_1, current_2) == YES_DEBUG:
+            self._write32(debug_1, NO_DEBUG[0])
+            self._write32(debug_2, NO_DEBUG[1])
+        elif (current_1, current_2) == NO_DEBUG:
+            self._write32(debug_1, YES_DEBUG[0])
+            self._write32(debug_2, YES_DEBUG[1])

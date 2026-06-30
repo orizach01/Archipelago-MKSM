@@ -46,10 +46,10 @@ class MKSMCommandProcessor(ClientCommandProcessor):
         return True
 
     def _cmd_events(self, n: str = "5") -> bool:
-        """prints the current room and the last n events in the game's live event log
+        """prints the current room and the last n events in the server's saved event log
         Usage: /events   or   /events 10"""
         ctx: MKSMContext = self.ctx
-        current_events = list(ctx.game_interface.get_event_block())
+        current_events = list(ctx.stored_data.get("EVENT_ARRAY") or [])
         events = [tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)]
 
         if not events:
@@ -64,6 +64,19 @@ class MKSMCommandProcessor(ClientCommandProcessor):
             self.output(f"room={hex(room)} event={hex(event_code)} ({location_name})")
 
         return True
+
+    def _cmd_debug(self) -> bool:
+        ctx: MKSMContext = self.ctx
+        ctx.game_interface.toggle_debug_menu()
+        return True
+
+    def _cmd_connect(self, address: str = "") -> bool:
+        """Connect to a MultiWorld Server"""
+        ctx: MKSMContext = self.ctx
+        if not (ctx.emulator_settled and ctx.game_interface.get_game_state() == GameState.MAIN_MENU):
+            self.output("can't connect - not at the main menu.")
+            return False
+        return super()._cmd_connect(address)
 
     async def _cmd_removeevent(self) -> bool:
         """removes all events from the room the last event happened in, use in cases of
@@ -136,6 +149,8 @@ class MKSMContext(CommonContext):
     health_upgrades: int = 0
     xp_items_given: int = 0
     first_loop: bool
+    pending_server_address: str | None
+    emulator_settled: bool
 
     def __init__(self, server_address: str | None, password: str | None) -> None:
         super().__init__(server_address, password)
@@ -146,6 +161,8 @@ class MKSMContext(CommonContext):
         self.prev_state = GameState.BOOTING
         self.slot_data = None
         self.first_loop = True
+        self.pending_server_address = None
+        self.emulator_settled = False
 
     async def server_auth(self, password_requested: bool = False) -> None:
         if password_requested and not self.password:
@@ -173,6 +190,18 @@ async def game_watcher(ctx: MKSMContext) -> None:
             continue
 
         if ctx.server is None or ctx.slot is None:
+            # don't connect to the AP server until a settled read shows the game sitting at
+            # the main menu - connecting while memory is still mid-boot/reset (and possibly
+            # garbage) is exactly what's caused the reset-related corruption bugs elsewhere
+            # in this client. "settled" just means we've already read game state once since
+            # the emulator connection was (re)established - this loop's previous iteration.
+            if (ctx.emulator_settled and ctx.pending_server_address
+                    and ctx.game_interface.get_game_state() == GameState.MAIN_MENU):
+                ctx.server_address = ctx.pending_server_address
+                ctx.pending_server_address = None
+                ctx.server_task = asyncio.create_task(server_loop(ctx), name="ServerLoop")
+
+            ctx.emulator_settled = True
             continue  # not connected to the AP server yet
 
         try:
@@ -186,10 +215,10 @@ async def game_watcher(ctx: MKSMContext) -> None:
 
 
 async def main(args) -> None:
-    ctx = MKSMContext(args.connect, args.password)
+    ctx = MKSMContext(None, args.password)
     ctx.auth = args.name
+    ctx.pending_server_address = args.connect  # held back until game_watcher's connect gate opens
 
-    ctx.server_task = asyncio.create_task(server_loop(ctx), name="ServerLoop")
     ctx.run_cli()
 
     ctx.set_notify("EVENT_ARRAY")

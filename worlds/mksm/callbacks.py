@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from NetUtils import ClientStatus
 from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
-    ROOM_EVENT_GATES
+    ROOM_EVENT_GATES, XC1_EVENTS, MAIN_BOSS_EVENTS, GORO_DEFEATED_EVENTS
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 
@@ -37,6 +37,7 @@ async def game_watcher(ctx: MKSMContext) -> None:
     read_game_state(ctx)
     ctx.is_paused = ctx.game_interface.is_paused()
     clear_events(ctx)
+    add_xc1_events_after_bosses(ctx)
     clear_xp(ctx)
 
     set_character(ctx)
@@ -83,6 +84,40 @@ def clear_events(ctx: MKSMContext):
 
         restored = server_array + [byte for event in pending_gated_events for byte in event]
         ctx.game_interface.clear_event_log(bytes(restored))
+
+
+def add_xc1_events_after_bosses(ctx: MKSMContext) -> None:
+    """Room 0xc1's events (XC1_EVENTS) only show up in a real playthrough once every main
+    boss is dead (MAIN_BOSS_EVENTS/GORO_DEFEATED_EVENTS) - once the server confirms that,
+    merge whichever of them aren't in the live event log yet. Checking against the server's
+    array (not live memory) avoids a stale/leftover boss-room event byte being mistaken for a
+    real kill, same reasoning as ROOM_EVENT_GATES."""
+    if not ctx.game_state == GameState.GAMEPLAY:
+        return
+
+    if "EVENT_ARRAY" not in ctx.stored_data:
+        return  # haven't heard back from the server yet - don't guess
+
+    server_array = ctx.stored_data["EVENT_ARRAY"] or []
+    server_events = {tuple(server_array[i:i + 8]) for i in range(0, len(server_array), 8)}
+
+    bosses_defeated = (
+        all(event in server_events for event in MAIN_BOSS_EVENTS)
+        and any(event in server_events for event in GORO_DEFEATED_EVENTS)
+    )
+    if not bosses_defeated:
+        return
+
+    current_events = list(ctx.game_interface.get_event_block())
+    live_events = {tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)}
+
+    xc1_events = [tuple(XC1_EVENTS[i:i + 8]) for i in range(0, len(XC1_EVENTS), 8)]
+    missing_events = [event for event in xc1_events if event not in live_events]
+    if not missing_events:
+        return
+
+    new_array = current_events + [byte for event in missing_events for byte in event]
+    ctx.game_interface.clear_event_log(bytes(new_array))
 
 
 def clear_xp(ctx: MKSMContext) -> None:

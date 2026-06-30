@@ -194,6 +194,8 @@ ADDRESSES = {
         "KOIN_FORMAT_STRING": 0x5777b8,
 
         "CURRENT_CHARACTER": 0xc2974c,
+
+        "DEBUG_MENU": (0x4c6fe0, 0x4c6fe4),
     }
 }
 
@@ -234,7 +236,9 @@ EVENTS_TO_LOCATION_NAME = {
 ROOM_EVENT_GATES: dict[int, tuple[int, int | None]] = {
     0xa0: (0xa0, 0x8b),  # N: don't trust this room's events until the Scorpion medallion event fires
     0x2c: (0x2d, None),  # W: don't trust this room's events until any event from the next room fires
-    0x60: (0x61, None),  # don't trust this room's events until any event from the next room fires
+    0x60: (0x61, None),  # don't trust this room's events until any event from the next room fires, TODO maybe change to x62
+    0x90: (0x90, 0x0e),  # LF: don't trust this room's events until the Reptile defeated event fires
+    0x0f: (0x0f, 0x37),  # ST: don't trust this room's events until the Baraka defeated event fires
 }
 
 DEFAULT_EVENT_ARRAY = [
@@ -263,8 +267,28 @@ DEFAULT_EVENT_ARRAY = [
     *_make_event(0x8e, 0x42),
     *_make_event(0x8e, 0x41),
     *_make_event(0x8e, 0x26),
+]
 
-    # room 0xc1 events
+# the 5 main boss fights - in a real playthrough, room 0xc1's events (see XC1_EVENTS below)
+# never show up until every one of these has fired. Goro's fight fires one of two different
+# room 0x2f events depending on how the fight goes; either one counts (EVENTS_TO_LOCATION_NAME
+# maps both to the same "W: Goro defeated" location).
+MAIN_BOSS_EVENTS = [
+    _make_event(0xa0, 0x8a),  # Scorpion
+    _make_event(0x90, 0x0e),  # Reptile
+    _make_event(0x0f, 0x37),  # Baraka
+    _make_event(0xc3, 0x3a),  # Kitana (combined Kitana/Mileena/Jade arena event)
+]
+GORO_DEFEATED_EVENTS = [
+    _make_event(0x2f, 0x05),
+    _make_event(0x2f, 0x0c),
+]
+
+# room 0xc1's events only ever show up in a real playthrough after every main boss above is
+# dead, so granting them earlier doesn't match any real game state - kept out of
+# DEFAULT_EVENT_ARRAY and merged in once that's confirmed (see add_xc1_events_after_bosses in
+# callbacks.py).
+XC1_EVENTS = [
     *_make_event(0xc1, 0x4a),
     *_make_event(0xc1, 0x4c),
     *_make_event(0xc1, 0x4e),
@@ -327,3 +351,6 @@ CHARACTER_OPTION_TO_VALUE_IN_GAME = {
     Character.option_scorpion: 0x52,
 
 }
+
+NO_DEBUG = (0x000001a5, 0x001aa630)
+YES_DEBUG = (0x0000019f, 0x001aae80)
