@@ -23,9 +23,15 @@ if TYPE_CHECKING:
 async def game_watcher(ctx: MKSMContext) -> None:
     """Called once per tick by the client's main loop."""
     # TODO red koin cmd
-    # TODO debug cmd
     # TODO deathlink
     # TODO close gracefully
+    # TODO traps
+    # TODO check events for breaking statues before kitana
+    # TODO check bruatlity room trigger after cutscene event from beating reptile ONLY
+    # TODO check soul tomb destroyed events
+    # TODO check portal start area open world style
+    # TODO open co op doors from start
+    # TODO smoke missions
     # TODO "GL: koin from shooting the moon" is excluded from the world for Sub-Zero/Scorpion
     #      seeds (see locations.create_region_locations), but MKSMInterface/consts.RED_KOINS
     #      still watches its memory address unconditionally. If it's ever flagged collected on
@@ -102,9 +108,10 @@ def add_xc1_events_after_bosses(ctx: MKSMContext) -> None:
     server_events = {tuple(server_array[i:i + 8]) for i in range(0, len(server_array), 8)}
 
     bosses_defeated = (
-        all(event in server_events for event in MAIN_BOSS_EVENTS)
-        and any(event in server_events for event in GORO_DEFEATED_EVENTS)
+            all(event in server_events for event in MAIN_BOSS_EVENTS)
+            and any(event in server_events for event in GORO_DEFEATED_EVENTS)
     )
+
     if not bosses_defeated:
         return
 
@@ -113,6 +120,7 @@ def add_xc1_events_after_bosses(ctx: MKSMContext) -> None:
 
     xc1_events = [tuple(XC1_EVENTS[i:i + 8]) for i in range(0, len(XC1_EVENTS), 8)]
     missing_events = [event for event in xc1_events if event not in live_events]
+
     if not missing_events:
         return
 
@@ -390,17 +398,24 @@ async def check_finishing_moves(ctx: MKSMContext) -> None:
 
 
 def update_koin_counter(ctx):
+    if not ctx.slot_data or "red_koin_amount" not in ctx.slot_data or "red_koin_need_percent" not in ctx.slot_data:
+        return  # haven't heard back from the server yet - don't guess
+
     total = ctx.slot_data["red_koin_amount"]
     needed = int(total * ctx.slot_data["red_koin_need_percent"] / 100)
     current = sum(item.item == ITEM_NAME_TO_ID["Red Koin"] for item in ctx.items_received)
 
     current = min(current, 99)
     needed = min(needed, 99)
+    total = min(total, 99)
 
-    ctx.game_interface.set_koin_string(current, needed)
+    ctx.game_interface.set_koin_string(current, needed, total)
 
 
 async def check_completed_game(ctx: MKSMContext):
+    if not ctx.slot_data or "red_koin_amount" not in ctx.slot_data or "red_koin_need_percent" not in ctx.slot_data:
+        return  # haven't heard back from the server yet - don't guess
+
     total = ctx.slot_data["red_koin_amount"]
     needed = int(total * ctx.slot_data["red_koin_need_percent"] / 100)
     current = sum(item.item == ITEM_NAME_TO_ID["Red Koin"] for item in ctx.items_received)
@@ -412,6 +427,9 @@ async def check_completed_game(ctx: MKSMContext):
 
 
 def set_character(ctx: MKSMContext) -> None:
+    if not ctx.slot_data or "character" not in ctx.slot_data:
+        return  # haven't heard back from the server yet - don't guess
+
     character_option = ctx.slot_data["character"]
     ctx.game_interface.set_character(character_option)
 
@@ -423,7 +441,7 @@ async def set_xp_items(ctx: MKSMContext) -> None:
     if "XP_ITEMS_GIVEN" not in ctx.stored_data:
         return  # initial value hasn't come back from the server yet - don't re-grant on a guess
 
-    xp_items = sum(item.item == ITEM_NAME_TO_ID["5000 XP"] for item in ctx.items_received)
+    xp_items = sum(item.item == ITEM_NAME_TO_ID["2000 XP"] for item in ctx.items_received)
     # stored_data is the cross-restart source of truth; ctx.xp_items_given is an
     # optimistic same-session cache so we don't re-grant while a Set is still in flight.
     xp_items_given = max(ctx.stored_data.get("XP_ITEMS_GIVEN") or 0, ctx.xp_items_given)
@@ -432,7 +450,7 @@ async def set_xp_items(ctx: MKSMContext) -> None:
         return
 
     delta = xp_items - xp_items_given
-    ctx.game_interface.add_xp(delta * 5000)
+    ctx.game_interface.add_xp(delta * 2000)
     ctx.xp_items_given = xp_items
 
     await ctx.send_msgs([{"cmd": "Set",

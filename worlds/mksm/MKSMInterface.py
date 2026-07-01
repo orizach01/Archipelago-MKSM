@@ -277,14 +277,21 @@ class MKSMInterface(GameInterface):
         animation_addr = self.addresses.get("CURRENT_ANIMATION")
         return self._read32(animation_addr)
 
-    def set_koin_string(self, have, total):
+    def set_koin_string(self, have, needed, total):
         have_1, have_2 = self._split_num_to_two_digits(have)
+        needed_1, needed_2 = self._split_num_to_two_digits(needed)
         total_1, total_2 = self._split_num_to_two_digits(total)
         #                 %      d   space  /    space  %     d     NULL
         # orginal_fmt = [0x25, 0x64, 0x20, 0x2f, 0x20, 0x25, 0x64, 0x0]
-        new_fmt = [ord(have_1), ord(have_2), 0x20, 0x2f, 0x20, ord(total_1), ord(total_2), 0x0]
+
+        # clearing the original %d / %d format to be a clear space, injecting our own string instead
+        only_spaces = [0x20] * 7
         fmt_addr = self.addresses.get("KOIN_FORMAT_STRING")
-        self._write_bytes(fmt_addr, bytes(new_fmt))
+        self._write_bytes(fmt_addr, bytes(only_spaces))
+
+        koin_string_addr = self.addresses.get("RED_KOIN_STRING")
+        koin_str = f"RED KOINS:               {have_1}{have_2} / {needed_1}{needed_2} / {total_1}{total_2}\0"
+        self._write_bytes(koin_string_addr, bytes(koin_str, encoding="ASCII"))
 
     def set_character(self, current_character_option):
         character_value = CHARACTER_OPTION_TO_VALUE_IN_GAME[current_character_option]
@@ -299,13 +306,17 @@ class MKSMInterface(GameInterface):
         addr = self.addresses.get("XP")
         self._write32(addr, xp)
 
-    def toggle_debug_menu(self) -> None:
+    def toggle_debug_menu(self) -> bool:
         debug_1, debug_2 = self.addresses.get("DEBUG_MENU")
         current_1, current_2 = self._read32(debug_1), self._read32(debug_2)
+
+        assert (current_1, current_2) in (YES_DEBUG, NO_DEBUG)
 
         if (current_1, current_2) == YES_DEBUG:
             self._write32(debug_1, NO_DEBUG[0])
             self._write32(debug_2, NO_DEBUG[1])
-        elif (current_1, current_2) == NO_DEBUG:
+            return False
+        else:  # (current_1, current_2) == NO_DEBUG:
             self._write32(debug_1, YES_DEBUG[0])
             self._write32(debug_2, YES_DEBUG[1])
+            return True

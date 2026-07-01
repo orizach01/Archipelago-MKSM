@@ -192,6 +192,7 @@ ADDRESSES = {
         "CURRENT_ANIMATION": 0x5e6b64,
 
         "KOIN_FORMAT_STRING": 0x5777b8,
+        "RED_KOIN_STRING": 0xc47d00,
 
         "CURRENT_CHARACTER": 0xc2974c,
 
@@ -236,7 +237,7 @@ EVENTS_TO_LOCATION_NAME = {
 ROOM_EVENT_GATES: dict[int, tuple[int, int | None]] = {
     0xa0: (0xa0, 0x8b),  # N: don't trust this room's events until the Scorpion medallion event fires
     0x2c: (0x2d, None),  # W: don't trust this room's events until any event from the next room fires
-    0x60: (0x61, None),  # don't trust this room's events until any event from the next room fires, TODO maybe change to x62
+    0x60: (0x62, None),  # don't trust this room's events until any event from the next room fires
     0x90: (0x90, 0x0e),  # LF: don't trust this room's events until the Reptile defeated event fires
     0x0f: (0x0f, 0x37),  # ST: don't trust this room's events until the Baraka defeated event fires
 }

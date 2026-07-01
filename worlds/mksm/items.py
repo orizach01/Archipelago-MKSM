@@ -28,11 +28,11 @@ ITEM_NAME_TO_ID = {
     "Red Koin": 17,
     "Health upgrade": 18,
     "Blood bar": 19,
-    "5000 XP": 20,
+    "2000 XP": 20,
 }
 
 DEFAULT_ITEM_CLASSIFICATIONS = {
-    "Long Jump": ItemClassification.progression | ItemClassification.useful,
+    "Long Jump": ItemClassification.progression,
     "Fist of Ruin": ItemClassification.progression,
     "Wall Climb": ItemClassification.progression,
     "Wall Run": ItemClassification.progression,
@@ -48,10 +48,10 @@ DEFAULT_ITEM_CLASSIFICATIONS = {
     "Triangle special upgrade": ItemClassification.filler,
     "Circle special upgrade": ItemClassification.filler,
     "R2 special upgrade": ItemClassification.filler,
-    "Red Koin": ItemClassification.progression_deprioritized_skip_balancing,
     "Health upgrade": ItemClassification.filler,
+    "Red Koin": ItemClassification.progression_deprioritized_skip_balancing,
     "Blood bar": ItemClassification.progression_deprioritized_skip_balancing,
-    "5000 XP": ItemClassification.filler,
+    "2000 XP": ItemClassification.filler,
 }
 
 
@@ -60,7 +60,7 @@ class MKSMItem(Item):
 
 
 def get_random_filler_item_name(world: MKSMWorld) -> str:
-    return "5000 XP"
+    return "2000 XP"
 
 
 def create_item_with_correct_classification(world: MKSMWorld, name: str) -> MKSMItem:
@@ -92,15 +92,12 @@ def create_all_items(world: MKSMWorld) -> None:
     number_of_unfilled_locations = len(world.multiworld.get_unfilled_locations(world.player))
     current_count = len(itempool)
 
-    assert current_count <= number_of_unfilled_locations
-
     diff = number_of_unfilled_locations - current_count
+    diff = 0 if diff < 0 else diff
 
-    xp_filler_count = diff // 4
-    red_koin_count = diff - xp_filler_count
+    red_koin_count = diff
 
     world.red_koin_amount = red_koin_count
     itempool += [world.create_item("Red Koin") for _ in range(red_koin_count)]
-    itempool += [world.create_item("5000 XP") for _ in range(xp_filler_count)]
 
     world.multiworld.itempool += itempool

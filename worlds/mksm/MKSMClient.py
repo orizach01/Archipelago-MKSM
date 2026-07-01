@@ -15,7 +15,8 @@ import asyncio
 import sys
 
 # CommonClient import first to trigger ModuleUpdater
-from CommonClient import CommonContext, server_loop, get_base_parser, handle_url_arg, logger, ClientCommandProcessor
+from CommonClient import CommonContext, server_loop, get_base_parser, handle_url_arg, logger, \
+    ClientCommandProcessor, gui_enabled
 
 import Utils
 from worlds.mksm.consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME
@@ -29,21 +30,21 @@ EMULATOR_RECONNECT_DELAY = 5  # seconds between PCSX2 connection attempts
 class MKSMCommandProcessor(ClientCommandProcessor):
     ctx: MKSMContext
 
-    def _cmd_xp(self, value: str = "1000") -> bool:
-        """Add given xp
-        Usage: /xp   or   /xp 5000"""
-        ctx: MKSMContext = self.ctx
-        ctx.game_interface.add_xp(int(value))
-        self.output(f"Added {value} XP")
-        return True
+    # def _cmd_xp(self, value: str = "1000") -> bool:
+    #     """Add given xp
+    #     Usage: /xp   or   /xp 5000"""
+    #     ctx: MKSMContext = self.ctx
+    #     ctx.game_interface.add_xp(int(value))
+    #     self.output(f"Added {value} XP")
+    #     return True
 
-    def _cmd_health(self):
-        """
-        prints current health status
-        """
-        ctx: MKSMContext = self.ctx
-        print(ctx.game_interface.health_status())
-        return True
+    # def _cmd_health(self):
+    #     """
+    #     prints current health status
+    #     """
+    #     ctx: MKSMContext = self.ctx
+    #     print(ctx.game_interface.health_status())
+    #     return True
 
     def _cmd_events(self, n: str = "5") -> bool:
         """prints the current room and the last n events in the server's saved event log
@@ -66,14 +67,27 @@ class MKSMCommandProcessor(ClientCommandProcessor):
         return True
 
     def _cmd_debug(self) -> bool:
+        """
+        Toggles whether the Debug menu replaces the options in the pause screen
+        """
         ctx: MKSMContext = self.ctx
-        ctx.game_interface.toggle_debug_menu()
+        if not ctx.game_interface.get_connection_state():
+            self.output("can't toggle debug menu - not connected to the game.")
+            return False
+
+        is_debug = ctx.game_interface.toggle_debug_menu()
+
+        if is_debug:
+            self.output("Debug Menu turned ON")
+        else:
+            self.output("Debug Menu turned OFF")
+
         return True
 
     def _cmd_connect(self, address: str = "") -> bool:
         """Connect to a MultiWorld Server"""
         ctx: MKSMContext = self.ctx
-        if not (ctx.emulator_settled and ctx.game_interface.get_game_state() == GameState.MAIN_MENU):
+        if not ctx.ready_to_connect():
             self.output("can't connect - not at the main menu.")
             return False
         return super()._cmd_connect(address)
@@ -164,6 +178,17 @@ class MKSMContext(CommonContext):
         self.pending_server_address = None
         self.emulator_settled = False
 
+    def ready_to_connect(self) -> bool:
+        return self.emulator_settled and self.game_interface.get_game_state() == GameState.MAIN_MENU
+
+    async def connect(self, address: str | None = None) -> None:
+        # gates the GUI's Connect button too, since it calls ctx.connect() directly
+        # rather than going through the command processor's _cmd_connect.
+        if not self.ready_to_connect():
+            logger.info("can't connect - not at the main menu.")
+            return
+        await super().connect(address)
+
     async def server_auth(self, password_requested: bool = False) -> None:
         if password_requested and not self.password:
             await super().server_auth(password_requested)
@@ -219,7 +244,10 @@ async def main(args) -> None:
     ctx.auth = args.name
     ctx.pending_server_address = args.connect  # held back until game_watcher's connect gate opens
 
-    ctx.run_cli()
+    if gui_enabled:
+        ctx.run_gui()
+    else:
+        ctx.run_cli()
 
     ctx.set_notify("EVENT_ARRAY")
     ctx.set_notify("CURRENT_XP")
