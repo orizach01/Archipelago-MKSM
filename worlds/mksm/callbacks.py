@@ -26,6 +26,7 @@ async def game_watcher(ctx: MKSMContext) -> None:
     # TODO deathlink
     # TODO close gracefully
     # TODO traps
+    # TODO turn fatality checks to fatalitysanity option
     # TODO check events for breaking statues before kitana
     # TODO check bruatlity room trigger after cutscene event from beating reptile ONLY
     # TODO check soul tomb destroyed events

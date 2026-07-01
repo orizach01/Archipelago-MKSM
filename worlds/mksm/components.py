@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-from worlds.LauncherComponents import Component, Type, components, icon_paths, launch
+from worlds.LauncherComponents import Component, Type, components, icon_paths, launch_subprocess
 
 from Utils import local_path
 
@@ -27,7 +27,7 @@ def run_client(*args: str) -> None:
     print("Running The Mortal Kombat: Shaolin Monks Client")
     from .MKSMClient import launch as main
 
-    launch(main, name="MKSMClient", args=args)
+    launch_subprocess(main, name="MKSMClient", args=args)
 
 
 components.append(

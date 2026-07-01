@@ -12,6 +12,7 @@ and other location categories come later.
 from __future__ import annotations
 
 import asyncio
+import logging
 import sys
 
 # CommonClient import first to trigger ModuleUpdater
@@ -263,6 +264,14 @@ async def main(args) -> None:
 
 def launch(*launch_args: str) -> None:
     import colorama
+
+    if not logging.getLogger().handlers:
+        # Launched via the graphical Launcher's component click: this runs in a fresh
+        # multiprocessing.Process with no console attached, and the __main__ guard below
+        # never fires (we're called as an imported function, not as the main script), so
+        # logging is otherwise never configured here - any startup exception would be
+        # completely invisible (no console, no log file) without this.
+        Utils.init_logging("MKSMClient", exception_logger="Client")
 
     parser = get_base_parser(description="Mortal Kombat: Shaolin Monks Archipelago Client")
     parser.add_argument("--name", default=None, help="Slot Name to connect as.")
