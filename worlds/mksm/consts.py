@@ -160,7 +160,7 @@ ADDRESSES = {
                                                             0x005d82a6: [6]},
         },
         "GAME_STATE": 0x5e1650,
-        "XP": 0xc2e224,
+        "EXP": 0xc2e224,
         "TOTAL_EVENTS": 0xc2def0,
         "EVENT_LOG_ARRAY": 0xc2a070,
         "PAUSE_FLAG": 0x4c49e8,
@@ -201,7 +201,10 @@ ADDRESSES = {
 
         "FORCE_UI_INST": 0x183eb8,
         "EXP_STRING": 0xc48380,
-        "EXP_FMT": 0x5770d0
+        "EXP_FMT": 0x5770d0,
+
+        "CURRENT_AREA": 0xc29748,
+        "IS_CURRENTLY_SAVING": 0x5e929f,
     }
 }
 
@@ -233,20 +236,8 @@ EVENTS_TO_LOCATION_NAME = {
 
 }
 
-# Some rooms have event bytes that can show up in the event log before the real story
-# event has actually happened (stale/leftover log entries). For a room listed here, no
-# event from that room is saved to the server until its gate is satisfied. A gate is a
-# (gate_room, gate_event) pair: if gate_event is None, any event from gate_room satisfies
-# it; otherwise that exact room/event pair must show up (gate_room may be the same as the
-# gated room itself).
-ROOM_EVENT_GATES: dict[int, tuple[int, int | None]] = {
-    0xa0: (0xa0, 0x8b),  # N: don't trust this room's events until the Scorpion medallion event fires
-    0x2c: (0x2d, None),  # W: don't trust this room's events until any event from the next room fires
-    0x60: (0x62, None),  # don't trust this room's events until any event from the next room fires
-    0x90: (0x90, 0x0e),  # LF: don't trust this room's events until the Reptile defeated event fires
-    0x0f: (0x0f, 0x37),  # ST: don't trust this room's events until the Baraka defeated event fires
-}
-
+# events that we want to automatically insert into every new run to avoid softlocks
+# for example reaching the fatality room without a bloodbar will softlock the game
 DEFAULT_EVENT_ARRAY = [
     # skip fatality event
     *_make_event(0x63, 0x15),
@@ -274,30 +265,15 @@ DEFAULT_EVENT_ARRAY = [
     *_make_event(0x8e, 0x41),
     *_make_event(0x8e, 0x26),
 
-    # event of cutscene after reptile, enables the brutality room red koin
+    # event of cutscene after reptile, enables the brutality room red koin without needing to beat reptile
     *_make_event(0x8f, 0x21),
 ]
 
-# the 5 main boss fights - in a real playthrough, room 0xc1's events (see XC1_EVENTS below)
-# never show up until every one of these has fired. Goro's fight fires one of two different
-# room 0x2f events depending on how the fight goes; either one counts (EVENTS_TO_LOCATION_NAME
-# maps both to the same "W: Goro defeated" location).
-MAIN_BOSS_EVENTS = [
-    _make_event(0xa0, 0x8a),  # Scorpion
-    _make_event(0x90, 0x0e),  # Reptile
-    _make_event(0x0f, 0x37),  # Baraka
-    _make_event(0xc3, 0x3a),  # Kitana (combined Kitana/Mileena/Jade arena event)
-]
-GORO_DEFEATED_EVENTS = [
-    _make_event(0x2f, 0x05),
-    _make_event(0x2f, 0x0c),
-]
-
-# room 0xc1's events only ever show up in a real playthrough after every main boss above is
-# dead, so granting them earlier doesn't match any real game state - kept out of
-# DEFAULT_EVENT_ARRAY and merged in once that's confirmed (see add_xc1_events_after_bosses in
-# callbacks.py).
-XC1_EVENTS = [
+# these events open the door to the foundry.
+# we want to inject the events once we detect the player beat every main boss.
+# because the events for beating bosses might not save correctly in the event array due to quitting the game,
+# the foundry door to not open properly
+FOUNDRY_DOOR_EVENTS = [
     *_make_event(0xc1, 0x4a),
     *_make_event(0xc1, 0x4c),
     *_make_event(0xc1, 0x4e),
@@ -367,3 +343,5 @@ YES_DEBUG = (0x0000019f, 0x001aae80)
 DEFAULT_EXP_STRING = "Exp: "
 DEFAULT_EXP_FMT = "%s %d"
 MESSAGE_EXP_FMT = "%s"
+
+FILLER_EXP = 2000

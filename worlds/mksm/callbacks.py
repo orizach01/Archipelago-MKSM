@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from NetUtils import ClientStatus
 from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
-    ROOM_EVENT_GATES, XC1_EVENTS, MAIN_BOSS_EVENTS, GORO_DEFEATED_EVENTS
+    FOUNDRY_DOOR_EVENTS, FILLER_EXP
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 from .options import BossGoal
@@ -54,8 +54,8 @@ async def game_watcher(ctx: MKSMContext) -> None:
     read_game_state(ctx)
     ctx.is_paused = ctx.game_interface.is_paused()
     clear_events(ctx)
-    add_xc1_events_after_bosses(ctx)
-    clear_xp(ctx)
+    open_foundry_door_after_bosses(ctx)
+    clear_exp(ctx)
 
     set_character(ctx)
     set_move_upgrades(ctx)
@@ -70,8 +70,8 @@ async def game_watcher(ctx: MKSMContext) -> None:
     await check_move_upgrades(ctx)
     await sync_red_koins(ctx)
     await update_events_in_server(ctx)
-    await update_xp_in_server(ctx)
-    await set_xp_items(ctx)
+    await update_exp_in_server(ctx)
+    await set_exp_items(ctx)
     await check_red_koins(ctx)
     await check_events(ctx)
     await check_finishing_moves(ctx)
@@ -89,24 +89,10 @@ def clear_events(ctx: MKSMContext):
         else:
             server_array = list(ctx.stored_data["EVENT_ARRAY"])
 
-        # a still-gated room's event can be sitting in live memory without having made it
-        # into the server's array yet (update_events_in_server withholds it until its gate
-        # opens) - preserve it here instead of stomping it with the server's array, or it
-        # gets erased before the gate ever gets a chance to open.
-        live_events_raw = list(ctx.game_interface.get_event_block())
-        live_events = [tuple(live_events_raw[i:i + 8]) for i in range(0, len(live_events_raw), 8)]
-        server_events = {tuple(server_array[i:i + 8]) for i in range(0, len(server_array), 8)}
-
-        pending_gated_events = [
-            event for event in live_events
-            if event[0] in ROOM_EVENT_GATES and event not in server_events
-        ]
-
-        restored = server_array + [byte for event in pending_gated_events for byte in event]
         ctx.game_interface.clear_event_log(bytes(server_array))
 
 
-def add_xc1_events_after_bosses(ctx: MKSMContext) -> None:
+def open_foundry_door_after_bosses(ctx: MKSMContext) -> None:
     """Room 0xc1's events (XC1_EVENTS) only show up in a real playthrough once every main
     boss is dead (MAIN_BOSS_EVENTS/GORO_DEFEATED_EVENTS) - once the server confirms that,
     merge whichever of them aren't in the live event log yet. Checking against the server's
@@ -115,16 +101,7 @@ def add_xc1_events_after_bosses(ctx: MKSMContext) -> None:
     if not ctx.game_state == GameState.GAMEPLAY:
         return
 
-    if "EVENT_ARRAY" not in ctx.stored_data:
-        return  # haven't heard back from the server yet - don't guess
-
-    server_array = ctx.stored_data["EVENT_ARRAY"] or []
-    server_events = {tuple(server_array[i:i + 8]) for i in range(0, len(server_array), 8)}
-
-    bosses_defeated = (
-            all(event in server_events for event in MAIN_BOSS_EVENTS)
-            and any(event in server_events for event in GORO_DEFEATED_EVENTS)
-    )
+    bosses_defeated = all(LOCATION_NAME_TO_ID[name] in ctx.checked_locations for name in MAIN_BOSS_LOCATIONS)
 
     if not bosses_defeated:
         return
@@ -132,21 +109,22 @@ def add_xc1_events_after_bosses(ctx: MKSMContext) -> None:
     current_events = list(ctx.game_interface.get_event_block())
     live_events = {tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)}
 
-    xc1_events = [tuple(XC1_EVENTS[i:i + 8]) for i in range(0, len(XC1_EVENTS), 8)]
-    missing_events = [event for event in xc1_events if event not in live_events]
+    foundry_door_events = [tuple(FOUNDRY_DOOR_EVENTS[i:i + 8]) for i in range(0, len(FOUNDRY_DOOR_EVENTS), 8)]
+    missing_events = [event for event in foundry_door_events if event not in live_events]
 
     if not missing_events:
         return
 
-    new_array = current_events + [byte for event in missing_events for byte in event]
+    # putting missing events at the start of the log array to not mess with the autosave system
+    new_array = [byte for event in missing_events for byte in event] + current_events
     ctx.game_interface.clear_event_log(bytes(new_array))
 
 
-def clear_xp(ctx: MKSMContext) -> None:
+def clear_exp(ctx: MKSMContext) -> None:
     if ctx.game_state != GameState.GAMEPLAY:
-        if "CURRENT_XP" not in ctx.stored_data:
+        if "CURRENT_EXP" not in ctx.stored_data:
             return  # haven't heard back from the server yet - don't zero it on a guess
-        ctx.game_interface.set_xp(ctx.stored_data["CURRENT_XP"] or 0)
+        ctx.game_interface.set_exp(ctx.stored_data["CURRENT_EXP"] or 0)
 
 
 async def update_events_in_server(ctx: MKSMContext) -> None:
@@ -154,30 +132,18 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
         return
 
     current_events = list(ctx.game_interface.get_event_block())
+    current_area = ctx.game_interface.get_current_area()
+
     events = [tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)]
-
-    # withhold a gated room's events from the server (and thus from EVENT_ARRAY, and thus
-    # from ever being replayed back into game memory by clear_events) until its gate is
-    # satisfied - see ROOM_EVENT_GATES.
-    open_gated_rooms = {
-        room for room, (gate_room, gate_event) in ROOM_EVENT_GATES.items()
-        if any(event[0] == gate_room and (gate_event is None or event[4] == gate_event) for event in events)
-    }
-    filtered_events = [
-        event for event in events
-        if event[0] not in ROOM_EVENT_GATES or event[0] in open_gated_rooms
-    ]
-    filtered_array = [byte for event in filtered_events for byte in event]
-
     server_array = ctx.stored_data.get("EVENT_ARRAY") or []
-    if filtered_array == server_array:
-        return  # already in sync with the server, nothing to push
 
-    if len(filtered_array) < len(server_array):
-        # the live event log only ever grows during real play - a shrink means we just read
-        # a spurious/incomplete event block (e.g. right after an emulator reset zeroed it out
-        # before the game finished booting), not real lost progress. Never push that to the
-        # server, or it permanently erases everything already recorded.
+    if not ctx.game_interface.is_currently_saving():
+        while len(events) > len(server_array) // 8 and events[-1][0] == current_area:
+            events.pop()
+
+    filtered_array = [byte for event in events for byte in event]
+
+    if filtered_array == server_array or len(filtered_array) < len(server_array):
         return
 
     await ctx.send_msgs([{"cmd": "Set",
@@ -191,26 +157,29 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
                           }])
 
 
-async def update_xp_in_server(ctx: MKSMContext) -> None:
+async def update_exp_in_server(ctx: MKSMContext) -> None:
     if not ctx.game_state == GameState.GAMEPLAY:
         return
 
-    current_xp = ctx.game_interface.get_current_xp()
-    server_xp = ctx.stored_data.get("CURRENT_XP") or 0
+    current_exp = ctx.game_interface.get_current_exp()
+    server_exp = ctx.stored_data.get("CURRENT_EXP") or 0
 
-    if current_xp == 0 and server_xp > 0:
-        # spending xp on upgrades legitimately lowers it, so a drop alone isn't suspicious -
+    if current_exp == 0 and server_exp > 0:
+        # spending exp on upgrades legitimately lowers it, so a drop alone isn't suspicious -
         # but a hard drop to exactly 0 means we just read a spurious/incomplete value (e.g.
         # right after an emulator reset zeroed it before the game finished booting), not a
         # real purchase. Never push that to the server.
+        # TODO this might result in an infinite exp situation if i have e.g 5000 exp buy a combo
+        #  and restart the game, the server will say i have 5000 exp
+        #  its an exploit but not too harsh
         return
 
     await ctx.send_msgs([{"cmd": "Set",
-                          "key": "CURRENT_XP",
+                          "key": "CURRENT_EXP",
                           "operations": [
                               {
                                   "operation": "replace",
-                                  "value": current_xp
+                                  "value": current_exp
                               }
                           ],
                           }])
@@ -439,9 +408,11 @@ async def check_completed_game(ctx: MKSMContext):
     current = sum(item.item == ITEM_NAME_TO_ID["Red Koin"] for item in ctx.items_received)
 
     boss_goal = ctx.slot_data["boss_goal"]
-    required_boss_locations = ["F: Shao Kahn defeated"]
+    required_boss_locations = []
+
     if boss_goal >= BossGoal.option_main_bosses:
         required_boss_locations += MAIN_BOSS_LOCATIONS
+        required_boss_locations.append("F: Shao Kahn defeated")
     if boss_goal >= BossGoal.option_main_and_secret_bosses:
         required_boss_locations += SECRET_BOSS_LOCATIONS
 
@@ -470,31 +441,28 @@ async def check_death(ctx: MKSMContext) -> None:
     ctx.was_dead = is_dead
 
 
-async def set_xp_items(ctx: MKSMContext) -> None:
-    if not ctx.game_state == GameState.GAMEPLAY:
+async def set_exp_items(ctx: MKSMContext) -> None:
+    if ctx.game_state != GameState.GAMEPLAY or "EXP_ITEMS_GIVEN" not in ctx.stored_data:
         return
 
-    if "XP_ITEMS_GIVEN" not in ctx.stored_data:
-        return  # initial value hasn't come back from the server yet - don't re-grant on a guess
-
-    xp_items = sum(item.item == ITEM_NAME_TO_ID["2000 XP"] for item in ctx.items_received)
-    # stored_data is the cross-restart source of truth; ctx.xp_items_given is an
+    exp_items = sum(item.item == ITEM_NAME_TO_ID[f"{FILLER_EXP} EXP"] for item in ctx.items_received)
+    # stored_data is the cross-restart source of truth; ctx.exp_items_given is an
     # optimistic same-session cache so we don't re-grant while a Set is still in flight.
-    xp_items_given = max(ctx.stored_data.get("XP_ITEMS_GIVEN") or 0, ctx.xp_items_given)
+    exp_items_given = max(ctx.stored_data.get("EXP_ITEMS_GIVEN") or 0, ctx.exp_items_given)
 
-    if xp_items == xp_items_given:
+    if exp_items == exp_items_given:
         return
 
-    delta = xp_items - xp_items_given
-    ctx.game_interface.add_xp(delta * 2000)
-    ctx.xp_items_given = xp_items
+    delta = exp_items - exp_items_given
+    ctx.game_interface.add_exp(delta * FILLER_EXP)
+    ctx.exp_items_given = exp_items
 
     await ctx.send_msgs([{"cmd": "Set",
-                          "key": "XP_ITEMS_GIVEN",
+                          "key": "EXP_ITEMS_GIVEN",
                           "operations": [
                               {
                                   "operation": "replace",
-                                  "value": xp_items
+                                  "value": exp_items
                               }
                           ],
                           }])
@@ -505,15 +473,16 @@ def update_message(ctx: MKSMContext) -> None:
         ctx.game_interface.set_default_exp_string()
         return
 
-    if ctx.print_start_time is not None and time.time() - ctx.print_start_time < 5:
+    if ctx.print_start_time is not None and time.monotonic() - ctx.print_start_time < 5:
         return  # still showing the current message
 
     if ctx.message_queue:
-        ctx.print_start_time = time.time()
+        ctx.print_start_time = time.monotonic()
         ctx.game_interface.set_message(ctx.message_queue.popleft())
     else:
         ctx.print_start_time = None
         ctx.game_interface.set_default_exp_string()
+
 
 def force_ui(ctx: MKSMContext):
     ctx.game_interface.force_ui()
