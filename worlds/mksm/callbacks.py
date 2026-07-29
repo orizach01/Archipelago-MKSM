@@ -11,8 +11,6 @@ from __future__ import annotations
 import time
 from typing import TYPE_CHECKING
 
-from Demos.security.get_policy_info import server_role
-
 from NetUtils import ClientStatus
 from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
     FOUNDRY_DOOR_EVENTS, FILLER_EXP
