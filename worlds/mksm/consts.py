@@ -354,6 +354,13 @@ DEFAULT_EXP_STRING = "Exp: "
 DEFAULT_EXP_FMT = "%s %d"
 MESSAGE_EXP_FMT = "%s"
 
+BUTTONS_ASCII = {
+    "Square": 0x2a,
+    "Triangle": 0x7e,
+    "Circle": 0x7c,
+    "R2": 0x5e,
+}
+
 FILLER_EXP = 2000
 
 CHARACTER_PURCHASE_AMOUNTS: dict[int, CharacterPurchaseAmounts] = {

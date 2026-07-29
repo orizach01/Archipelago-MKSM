@@ -3,7 +3,7 @@ from logging import Logger
 from typing import Optional, Dict
 
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
-    NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION
+    NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII
 
 from .pcsx2_interface.pine import Pine
 
@@ -338,6 +338,12 @@ class MKSMInterface(GameInterface):
         message = message.encode("ASCII", errors="ignore")
         fmt = DEFAULT_EXP_FMT if default_fmt else MESSAGE_EXP_FMT
         fmt = fmt.encode("ASCII", errors="ignore")
+
+        for button_name in BUTTONS_ASCII:
+            button_bytes = button_name.encode("ASCII", errors="ignore")
+            replacement = bytes([BUTTONS_ASCII[button_name]])
+
+            message = message.replace(button_bytes, replacement)
 
         exp_str_addr = self.addresses.get("EXP_STRING")
         exp_fmt_addr = self.addresses.get("EXP_FMT")

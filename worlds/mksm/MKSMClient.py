@@ -18,6 +18,7 @@ import sys
 import typing
 from collections import deque
 
+from BaseClasses import ItemClassification
 # CommonClient import first to trigger ModuleUpdater
 from CommonClient import CommonContext, server_loop, get_base_parser, handle_url_arg, logger, \
     ClientCommandProcessor, gui_enabled
@@ -226,8 +227,37 @@ class MKSMContext(CommonContext):
 
     def on_print_json(self, args: dict):
         super().on_print_json(args)
-        message = self.rawjsontotextparser(copy.deepcopy(args["data"]))
-        self.message_queue.append(message)
+
+        if "type" in args and args["type"] == "ItemSend":
+            item = args["item"]
+            recipient = args["receiving"]
+
+            # Receiving an item from the server
+            if self.slot_concerns_self(recipient):
+                item_name = self.item_names.lookup_in_game(item.item)
+
+                if self.slot_concerns_self(item.player):
+                    # found self item
+                    location_name = self.location_names.lookup_in_game(item.location)
+                    message = f"Found {item_name} ({location_name})"
+                    self.message_queue.append(message)
+                else:
+                    # got from someone else
+                    finder = self.player_names[item.player]
+                    location_name = self.location_names.lookup_in_slot(item.location, item.player)
+                    message = f"Received {item_name} from {finder} ({location_name})"
+                    self.message_queue.append(message)
+
+            # Sending an item to the server.
+            elif self.slot_concerns_self(item.player):
+                item_name = self.item_names.lookup_in_slot(item.item, recipient)
+
+                owner = self.player_names[recipient]
+
+                location_name = self.location_names.lookup_in_game(item.location)
+
+                message = f"Sent {item_name} to {owner} ({location_name})"
+                self.message_queue.append(message)
 
 
 async def game_watcher(ctx: MKSMContext) -> None:
