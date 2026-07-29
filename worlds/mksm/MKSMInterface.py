@@ -371,4 +371,5 @@ class MKSMInterface(GameInterface):
         return self.get_current_animation() == SAVING_ANIMATION
 
     def is_during_finishing_move(self) -> bool:
+        # TODO check for other cutscenes maybe?
         return self.get_current_animation() in ANIMATIONS_TO_LOCATION_NAME.keys()
