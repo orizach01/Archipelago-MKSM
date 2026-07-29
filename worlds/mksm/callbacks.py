@@ -40,13 +40,12 @@ async def game_watcher(ctx: MKSMContext) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
     # TODO check events for breaking statues before kitana, need to inject them only after entering boss room after
-    # TODO check bruatlity room trigger after cutscene event from beating reptile ONLY
     # TODO check soul tomb destroyed events
-    # TODO check portal start area open world style
+    # TODO check portal start area open world style -> update: address in code notes for pause menu area
     # TODO open co op doors from start
     # TODO change purchase location tiers to be by price, and revert combos to be separate
     # TODO smoke missions
-    # TODO mileena boss is bugged, check which events are needed to not bug her
+    # TODO mileena boss is bugged, check which events are needed to not bug her -> update: need to restart game to fix
 
     if ctx.game_interface.current_game is None:
         return  # not connected to the emulator/game yet

@@ -33,16 +33,6 @@ def _make_event(room: int, event: int):
     return tuple([room, 0, 0, 0, event, 0, 0, 0])
 
 
-CHARACTER_PURCHASE_AMOUNTS: dict[int, CharacterPurchaseAmounts] = {
-    Character.option_liu_kang: CharacterPurchaseAmounts(combo=5, square=3, triangle=3, circle=2, r2=4),
-    Character.option_kung_lao: CharacterPurchaseAmounts(combo=5, square=2, triangle=2, circle=4, r2=4),
-    Character.option_sub_zero: CharacterPurchaseAmounts(combo=2, square=0, triangle=2, circle=2, r2=4),
-    Character.option_scorpion: CharacterPurchaseAmounts(combo=3, square=2, triangle=2, circle=2, r2=4),
-}
-
-HEALTH_UPGRADE_AMOUNT = 4
-BLOOD_BAR_AMOUNT = 3
-
 ADDRESSES = {
     "SLUS-21087": {
         "RED_KOINS": {
@@ -327,6 +317,22 @@ ANIMATIONS_TO_LOCATION_NAME = {
     0x855: "Perform Spear Slice (Fatality)",
     0x857: "Perform Raise Hell (Multality)",
     0x863: "Perform Searing Blade (Brutality)",
+
+    # Baraka:
+    0x8f3: "Decapitation (Fatality)",
+    0x8f5: "Blade Lift (Fatality)",
+
+    # Kitana:
+    0xb0b: "Kiss of Death (Fatality)",
+    0xb0d: "Head Chop (Fatality)",
+
+    # Reptile:
+    0x97e: "Head Eat (Fatality)",
+    0x980: "Hidden Chomp (Fatality)",
+
+    # Johnny Cage:
+    0xb9e: "Torso Rip (Fatality)",
+    0xba0: "Head Decaptation (Fatality)",
 }
 
 CHARACTER_OPTION_TO_VALUE_IN_GAME = {
@@ -334,6 +340,10 @@ CHARACTER_OPTION_TO_VALUE_IN_GAME = {
     Character.option_kung_lao: 0x01,
     Character.option_sub_zero: 0x58,
     Character.option_scorpion: 0x52,
+    Character.option_baraka: 0x53,
+    Character.option_kitana: 0x59,
+    Character.option_reptile: 0x54,
+    Character.option_johnny_cage: 0x5a,
 
 }
 
@@ -345,3 +355,30 @@ DEFAULT_EXP_FMT = "%s %d"
 MESSAGE_EXP_FMT = "%s"
 
 FILLER_EXP = 2000
+
+CHARACTER_PURCHASE_AMOUNTS: dict[int, CharacterPurchaseAmounts] = {
+    Character.option_liu_kang: CharacterPurchaseAmounts(combo=5, square=3, triangle=3, circle=2, r2=4),
+    Character.option_kung_lao: CharacterPurchaseAmounts(combo=5, square=2, triangle=2, circle=4, r2=4),
+    Character.option_sub_zero: CharacterPurchaseAmounts(combo=2, square=0, triangle=2, circle=2, r2=4),
+    Character.option_scorpion: CharacterPurchaseAmounts(combo=3, square=2, triangle=2, circle=2, r2=4),
+}
+
+CHARACTER_PURCHASE_AMOUNTS |= {
+    Character.option_baraka: CHARACTER_PURCHASE_AMOUNTS[Character.option_liu_kang],
+    Character.option_kitana: CHARACTER_PURCHASE_AMOUNTS[Character.option_liu_kang],
+    Character.option_reptile: CHARACTER_PURCHASE_AMOUNTS[Character.option_liu_kang],
+    Character.option_johnny_cage: CHARACTER_PURCHASE_AMOUNTS[Character.option_liu_kang],
+}
+
+HEALTH_UPGRADE_AMOUNT = 4
+
+CHARACTER_BLOOD_BAR_AMOUNT = {
+    Character.option_liu_kang: 3,
+    Character.option_kung_lao: 3,
+    Character.option_sub_zero: 3,
+    Character.option_scorpion: 3,
+    Character.option_baraka: 1,
+    Character.option_kitana: 1,
+    Character.option_reptile: 1,
+    Character.option_johnny_cage: 1,
+}

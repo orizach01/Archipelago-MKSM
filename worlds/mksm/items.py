@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from BaseClasses import Item, ItemClassification
-from .consts import CHARACTER_PURCHASE_AMOUNTS, HEALTH_UPGRADE_AMOUNT, BLOOD_BAR_AMOUNT, FILLER_EXP
+from .consts import CHARACTER_PURCHASE_AMOUNTS, HEALTH_UPGRADE_AMOUNT, CHARACTER_BLOOD_BAR_AMOUNT, FILLER_EXP
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -74,16 +74,22 @@ def create_all_items(world: MKSMWorld) -> None:
         world.create_item("Double Jump"),
     ]
 
-    amounts = CHARACTER_PURCHASE_AMOUNTS[world.options.character.value]
+    character = world.options.character
 
-    itempool += [world.create_item(f"Combo {i + 1}") for i in range(amounts.combo)]
-    itempool += [world.create_item("Square special upgrade") for _ in range(amounts.square)]
-    itempool += [world.create_item("Triangle special upgrade") for _ in range(amounts.triangle)]
-    itempool += [world.create_item("Circle special upgrade") for _ in range(amounts.circle)]
+    amounts = CHARACTER_PURCHASE_AMOUNTS[character.value]
+
+    if not character.is_vs():
+        itempool += [world.create_item(f"Combo {i + 1}") for i in range(amounts.combo)]
+        itempool += [world.create_item("Square special upgrade") for _ in range(amounts.square)]
+        itempool += [world.create_item("Triangle special upgrade") for _ in range(amounts.triangle)]
+        itempool += [world.create_item("Circle special upgrade") for _ in range(amounts.circle)]
+
     itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2)]
 
     itempool += [world.create_item("Health upgrade") for _ in range(HEALTH_UPGRADE_AMOUNT)]
-    itempool += [world.create_item("Blood bar") for _ in range(BLOOD_BAR_AMOUNT)]
+
+    blood_bar_amount = CHARACTER_BLOOD_BAR_AMOUNT[character.value]
+    itempool += [world.create_item("Blood bar") for _ in range(blood_bar_amount)]
 
     number_of_unfilled_locations = len(world.multiworld.get_unfilled_locations(world.player))
     current_count = len(itempool)

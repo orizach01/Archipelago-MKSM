@@ -8,6 +8,10 @@ class Character(Choice):
     The character you play as during the run.
     The game will force the character picked here to be your character in-game.
     That means you don't need to unlock Scorpion/Sub-Zero first in order to play as them.
+    The VS mode exclusive characters are also available, but due to how they work they always start with fully upgraded
+     special moves except for R2, so that means there will be no special move upgrade items in the multiworld except R2,
+     and no blood bar upgrades beyond the first one.
+    You can still purchase upgrades in the menu like with other characters.
     """
     display_name = "Character"
 
@@ -15,8 +19,20 @@ class Character(Choice):
     option_kung_lao = 1
     option_sub_zero = 2
     option_scorpion = 3
+    option_baraka = 4  # can get r2 upgrades
+    option_kitana = 5  # can get r2 upgrades
+    option_reptile = 6  # can get r2 upgrades
+    option_johnny_cage = 7  # can get r2 upgrades
 
     default = option_liu_kang
+
+    def is_vs(self):
+        return self in (
+            Character.option_baraka,
+            Character.option_kitana,
+            Character.option_reptile,
+            Character.option_johnny_cage,
+        )
 
 
 class RedKoinPercent(Range):

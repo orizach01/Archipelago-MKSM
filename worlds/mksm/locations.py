@@ -160,7 +160,7 @@ PURCHASE_LOCATIONS = {
     "Purchase 5th combo": 101,
 }
 
-FINISHING_MOVES_LOCATIONS = {
+FINISHING_MOVES_LOCATIONS: dict[int, dict[str, int]] = {
     Character.option_liu_kang: {
         "Perform Shaolin Soccer (Fatality)": 500,
         "Perform Bonebreak Combo (Fatality)": 501,
@@ -200,7 +200,24 @@ FINISHING_MOVES_LOCATIONS = {
         "Perform Spear Slice (Fatality)": 529,
         "Perform Raise Hell (Multality)": 530,
         "Perform Searing Blade (Brutality)": 531,
-    }
+    },
+    Character.option_baraka: {
+        "Decapitation (Fatality)": 532,
+        "Blade Lift (Fatality)": 533,
+    },
+    Character.option_kitana: {
+        "Kiss of Death (Fatality)": 534,
+        "Head Chop (Fatality)": 535,
+    },
+    Character.option_reptile: {
+        "Head Eat (Fatality)": 536,
+        "Hidden Chomp (Fatality)": 537,
+    },
+    Character.option_johnny_cage: {
+        "Torso Rip (Fatality)": 538,
+        "Head Decaptation (Fatality)": 539,
+    },
+
 }
 
 LOCATION_NAME_TO_ID = {loc: loc_id for k, v in REGION_NAME_LOCATIONS.items() for loc, loc_id in v.items()}
@@ -222,6 +239,7 @@ def create_all_locations(world: MKSMWorld) -> None:
 
 
 def create_region_locations(world: MKSMWorld) -> None:
+    # TODO test for vs mode characters
     can_shoot_moon = world.options.character.value in (Character.option_liu_kang, Character.option_kung_lao)
 
     for region_name in REGION_NAME_LOCATIONS:
