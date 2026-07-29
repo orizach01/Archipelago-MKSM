@@ -202,20 +202,20 @@ FINISHING_MOVES_LOCATIONS: dict[int, dict[str, int]] = {
         "Perform Searing Blade (Brutality)": 531,
     },
     Character.option_baraka: {
-        "Decapitation (Fatality)": 532,
-        "Blade Lift (Fatality)": 533,
+        "Perform Decapitation (Fatality)": 532,
+        "Perform Blade Lift (Fatality)": 533,
     },
     Character.option_kitana: {
-        "Kiss of Death (Fatality)": 534,
-        "Head Chop (Fatality)": 535,
+        "Perform Kiss of Death (Fatality)": 534,
+        "Perform Head Chop (Fatality)": 535,
     },
     Character.option_reptile: {
-        "Head Eat (Fatality)": 536,
-        "Hidden Chomp (Fatality)": 537,
+        "Perform Head Eat (Fatality)": 536,
+        "Perform Hidden Chomp (Fatality)": 537,
     },
     Character.option_johnny_cage: {
-        "Torso Rip (Fatality)": 538,
-        "Head Decaptation (Fatality)": 539,
+        "Perform Torso Rip (Fatality)": 538,
+        "Perform Head Decaptation (Fatality)": 539,
     },
 
 }

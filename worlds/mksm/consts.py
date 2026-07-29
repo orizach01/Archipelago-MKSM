@@ -194,7 +194,7 @@ ADDRESSES = {
         "EXP_FMT": 0x5770d0,
 
         "CURRENT_AREA": 0xc29748,
-        "IS_CURRENTLY_SAVING": 0x5e929f,
+        # "IS_CURRENTLY_SAVING": 0x5e929f,
     }
 }
 
@@ -319,20 +319,20 @@ ANIMATIONS_TO_LOCATION_NAME = {
     0x863: "Perform Searing Blade (Brutality)",
 
     # Baraka:
-    0x8f3: "Decapitation (Fatality)",
-    0x8f5: "Blade Lift (Fatality)",
+    0x8f3: "Perform Decapitation (Fatality)",
+    0x8f5: "Perform Blade Lift (Fatality)",
 
     # Kitana:
-    0xb0b: "Kiss of Death (Fatality)",
-    0xb0d: "Head Chop (Fatality)",
+    0xb0b: "Perform Kiss of Death (Fatality)",
+    0xb0d: "Perform Head Chop (Fatality)",
 
     # Reptile:
-    0x97e: "Head Eat (Fatality)",
-    0x980: "Hidden Chomp (Fatality)",
+    0x97e: "Perform Head Eat (Fatality)",
+    0x980: "Perform Hidden Chomp (Fatality)",
 
     # Johnny Cage:
-    0xb9e: "Torso Rip (Fatality)",
-    0xba0: "Head Decaptation (Fatality)",
+    0xb9e: "Perform Torso Rip (Fatality)",
+    0xba0: "Perform Head Decaptation (Fatality)",
 }
 
 CHARACTER_OPTION_TO_VALUE_IN_GAME = {
@@ -382,3 +382,5 @@ CHARACTER_BLOOD_BAR_AMOUNT = {
     Character.option_reptile: 1,
     Character.option_johnny_cage: 1,
 }
+
+SAVING_ANIMATION = 0x15

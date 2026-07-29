@@ -3,7 +3,7 @@ from logging import Logger
 from typing import Optional, Dict
 
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
-    NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT
+    NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION
 
 from .pcsx2_interface.pine import Pine
 
@@ -361,6 +361,4 @@ class MKSMInterface(GameInterface):
         return self._read32(area_addr)
 
     def is_currently_saving(self):
-        saving_addr = self.addresses.get("IS_CURRENTLY_SAVING")
-
-        return bool(self._read8(saving_addr))
+        return self.get_current_animation() == SAVING_ANIMATION

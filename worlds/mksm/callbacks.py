@@ -92,11 +92,6 @@ def clear_events(ctx: MKSMContext):
 
 
 def open_foundry_door_after_bosses(ctx: MKSMContext) -> None:
-    """Room 0xc1's events (XC1_EVENTS) only show up in a real playthrough once every main
-    boss is dead (MAIN_BOSS_EVENTS/GORO_DEFEATED_EVENTS) - once the server confirms that,
-    merge whichever of them aren't in the live event log yet. Checking against the server's
-    array (not live memory) avoids a stale/leftover boss-room event byte being mistaken for a
-    real kill, same reasoning as ROOM_EVENT_GATES."""
     if not ctx.game_state == GameState.GAMEPLAY:
         return
 
@@ -139,6 +134,8 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
     if not ctx.game_interface.is_currently_saving():
         while len(events) > len(server_array) // 8 and events[-1][0] == current_area:
             events.pop()
+    else:
+        print('saving lol')
 
     filtered_array = [byte for event in events for byte in event]
 
