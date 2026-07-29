@@ -39,7 +39,6 @@ if TYPE_CHECKING:
 async def game_watcher(ctx: MKSMContext) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
-    # TODO check events for breaking statues before kitana, need to inject them only after entering boss room after
     # TODO check soul tomb destroyed events
     # TODO check portal start area open world style -> update: address in code notes for pause menu area
     # TODO open co op doors from start
@@ -135,7 +134,7 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
         while len(events) > len(server_array) // 8 and events[-1][0] == current_area:
             events.pop()
     else:
-        print('saving lol')
+        print('saving lol') #TODO remove later
 
     filtered_array = [byte for event in events for byte in event]
 
