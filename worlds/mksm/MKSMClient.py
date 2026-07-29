@@ -12,7 +12,6 @@ and other location categories come later.
 from __future__ import annotations
 
 import asyncio
-import copy
 import logging
 import sys
 import typing
@@ -183,7 +182,9 @@ class MKSMContext(CommonContext):
     emulator_settled: bool
     was_dead: bool
     message_queue: deque
-    print_start_time: float | None
+    message_timer: float | None
+    current_message: str | None
+    last_time: float
 
     def __init__(self, server_address: str | None, password: str | None) -> None:
         super().__init__(server_address, password)
@@ -198,7 +199,8 @@ class MKSMContext(CommonContext):
         self.emulator_settled = False
         self.was_dead = False
         self.message_queue = deque()
-        self.print_start_time = None  # None means no message is currently being displayed
+        self.message_timer = None  # None means no message is currently being displayed
+        self.current_message = None
 
     def ready_to_connect(self) -> bool:
         return self.emulator_settled and self.game_interface.get_game_state() == GameState.MAIN_MENU
@@ -290,6 +292,8 @@ async def game_watcher(ctx: MKSMContext) -> None:
             continue  # not connected to the AP server yet
 
         try:
+            loop = asyncio.get_running_loop()
+            ctx.last_time = loop.time()
             await run_callbacks(ctx)
         except Exception:
             # Without this, any exception raised anywhere in the callback chain

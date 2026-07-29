@@ -212,10 +212,12 @@ FINISHING_MOVES_LOCATIONS: dict[int, dict[str, int]] = {
     Character.option_reptile: {
         "Perform Head Eat (Fatality)": 536,
         "Perform Hidden Chomp (Fatality)": 537,
+        "Perform Face Claw (Fatality)": 540,
     },
     Character.option_johnny_cage: {
         "Perform Torso Rip (Fatality)": 538,
         "Perform Head Decaptation (Fatality)": 539,
+        "Perform Nut Buster (Fatality)": 541,
     },
 
 }

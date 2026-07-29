@@ -329,10 +329,12 @@ ANIMATIONS_TO_LOCATION_NAME = {
     # Reptile:
     0x97e: "Perform Head Eat (Fatality)",
     0x980: "Perform Hidden Chomp (Fatality)",
+    0x97c: "Perform Face Claw (Fatality)",
 
     # Johnny Cage:
     0xb9e: "Perform Torso Rip (Fatality)",
     0xba0: "Perform Head Decaptation (Fatality)",
+    0xb9b: "Perform Nut Buster (Fatality)",
 }
 
 CHARACTER_OPTION_TO_VALUE_IN_GAME = {

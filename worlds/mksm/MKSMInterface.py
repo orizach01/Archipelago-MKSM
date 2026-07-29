@@ -3,7 +3,8 @@ from logging import Logger
 from typing import Optional, Dict
 
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
-    NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII
+    NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII, \
+    ANIMATIONS_TO_LOCATION_NAME
 
 from .pcsx2_interface.pine import Pine
 
@@ -366,5 +367,8 @@ class MKSMInterface(GameInterface):
 
         return self._read32(area_addr)
 
-    def is_currently_saving(self):
+    def is_currently_saving(self) -> bool:
         return self.get_current_animation() == SAVING_ANIMATION
+
+    def is_during_finishing_move(self) -> bool:
+        return self.get_current_animation() in ANIMATIONS_TO_LOCATION_NAME.keys()

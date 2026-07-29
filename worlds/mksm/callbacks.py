@@ -8,6 +8,7 @@ Item granting / other location types come later.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from typing import TYPE_CHECKING
 
@@ -49,6 +50,11 @@ async def game_watcher(ctx: MKSMContext) -> None:
     if ctx.game_interface.current_game is None:
         return  # not connected to the emulator/game yet
 
+    loop = asyncio.get_running_loop()
+    current_time = loop.time()
+    dt = current_time - ctx.last_time
+    ctx.last_time = current_time
+
     read_game_state(ctx)
     ctx.is_paused = ctx.game_interface.is_paused()
     clear_events(ctx)
@@ -62,7 +68,8 @@ async def game_watcher(ctx: MKSMContext) -> None:
     set_blood_bar(ctx)
     update_koin_counter(ctx)
     force_ui(ctx)
-    update_message(ctx)
+
+    update_message(ctx, dt * 10000)
 
     await check_death(ctx)
     await check_move_upgrades(ctx)
@@ -134,7 +141,7 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
         while len(events) > len(server_array) // 8 and events[-1][0] == current_area:
             events.pop()
     else:
-        print('saving lol') #TODO remove later
+        print('saving lol')  # TODO remove later
 
     filtered_array = [byte for event in events for byte in event]
 
@@ -463,19 +470,26 @@ async def set_exp_items(ctx: MKSMContext) -> None:
                           }])
 
 
-def update_message(ctx: MKSMContext) -> None:
-    if ctx.is_paused:
+def update_message(ctx: MKSMContext, dt: float) -> None:
+    if ctx.is_paused or ctx.game_interface.is_during_finishing_move():
         ctx.game_interface.set_default_exp_string()
         return
 
-    if ctx.print_start_time is not None and time.monotonic() - ctx.print_start_time < 5:
-        return  # still showing the current message
+    if ctx.current_message is not None:
+        ctx.message_timer += dt
+
+        if ctx.message_timer < 5.0:
+            ctx.game_interface.set_message(ctx.current_message)
+            return
+
+        ctx.current_message = None
+        ctx.message_timer = 0.0
 
     if ctx.message_queue:
-        ctx.print_start_time = time.monotonic()
-        ctx.game_interface.set_message(ctx.message_queue.popleft())
+        ctx.current_message = ctx.message_queue.popleft()
+        ctx.message_timer = 0.0
+        ctx.game_interface.set_message(ctx.current_message)
     else:
-        ctx.print_start_time = None
         ctx.game_interface.set_default_exp_string()
 
 
