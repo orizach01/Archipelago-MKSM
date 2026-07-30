@@ -43,7 +43,7 @@ async def game_watcher(ctx: MKSMContext) -> None:
     # TODO check soul tomb destroyed events
     # TODO check portal start area open world style -> update: address in code notes for pause menu area
     # TODO open co op doors from start
-    # TODO change purchase location tiers to be by price, and revert combos to be separate
+    # TODO! change purchase location tiers to be by price, and revert combos to be separate
     # TODO smoke missions
     # TODO mileena boss is bugged, check which events are needed to not bug her -> update: need to restart game to fix
 
@@ -140,8 +140,8 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
     if not ctx.game_interface.is_currently_saving():
         while len(events) > len(server_array) // 8 and events[-1][0] == current_area:
             events.pop()
-    else:
-        print('saving lol')  # TODO remove later
+    # else:
+    #     print('saving lol')  # TODO remove later
 
     filtered_array = [byte for event in events for byte in event]
 
@@ -171,7 +171,7 @@ async def update_exp_in_server(ctx: MKSMContext) -> None:
         # but a hard drop to exactly 0 means we just read a spurious/incomplete value (e.g.
         # right after an emulator reset zeroed it before the game finished booting), not a
         # real purchase. Never push that to the server.
-        # TODO this might result in an infinite exp situation if i have e.g 5000 exp buy a combo
+        # TODO this results in an infinite exp situation if i have e.g 5000 exp buy a combo
         #  and restart the game, the server will say i have 5000 exp
         #  its an exploit but not too harsh
         return

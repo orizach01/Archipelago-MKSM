@@ -392,4 +392,4 @@ CHARACTER_BLOOD_BAR_AMOUNT = {
     Character.option_johnny_cage: 1,
 }
 
-SAVING_ANIMATION = 0x15
+SAVING_ANIMATION = 0xF
