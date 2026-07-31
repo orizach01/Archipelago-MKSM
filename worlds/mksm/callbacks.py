@@ -40,6 +40,7 @@ if TYPE_CHECKING:
 async def game_watcher(ctx: MKSMContext) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
+    # TODO grant fake fist of ruin for soul tomb room? area 0x04
     # TODO check portal start area open world style -> update: address in code notes for pause menu area
     # TODO open co op doors from start
     # TODO! change purchase location tiers to be by price, and revert combos to be separate

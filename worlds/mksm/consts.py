@@ -79,7 +79,7 @@ ADDRESSES = {
             "LF: koin from defeating Mileena": {0x005d82a6: [0]},
 
             # Forest - Reptile arena
-            "LF: koin from breaking the fast statues": {0x005d82a1: [5, 6, 7], 0x005d82a8: [2, 3]},
+            "LF: koin in the brutality room": {0x005d82a1: [5, 6, 7], 0x005d82a8: [2, 3]},
 
             # Wasteland 1
             "W: koin from impaling an enemy on the big spike": {
@@ -109,7 +109,7 @@ ADDRESSES = {
             "ST: koin from using all three death traps": {0x005d82ae: [4]},
             "ST: koin from the broken statue": {0x005d828c: [0]},
             "ST: koin above the broken statue": {0x005d828a: [3], 0x005d8294: [6, 7], 0x005d8295: [0], 0x005d82a9: [6]},
-            "ST: koin from high button in the rolling spikes room": {0x005d828b: [7], 0x005d82a6: [3]},
+            "ST: koin from a high button in the rolling spikes room": {0x005d828b: [7], 0x005d82a6: [3]},
             "ST: koin above the ceiling in the room with the hooks": {0x005d82a4: [7]},
             "ST: koin from shooting the dragon koin in the test your might room": {0x005d82a4: [6]},
             "ST: koin from killing the strolling skeleton": {

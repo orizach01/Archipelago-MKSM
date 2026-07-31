@@ -58,7 +58,7 @@ REGION_NAME_LOCATIONS = {
         "LF: koin near the giant snake head": 25,
         "LF: koin from shooting the closed eye": 26,
         "LF: Forest health upgrade": 27,
-        "LF: koin from breaking the fast statues": 28,
+        "LF: koin in the brutality room": 28,
     },
     "Forest - Bridges": {
         "LF: koin from shooting at dragon koin": 29,
@@ -98,7 +98,7 @@ REGION_NAME_LOCATIONS = {
         "ST: koin from using all three death traps": 51,
         "ST: koin from the broken statue": 52,
         "ST: koin above the broken statue": 53,
-        "ST: koin from high button in the rolling spikes room": 54,
+        "ST: koin from a high button in the rolling spikes room": 54,
         "ST: koin above the ceiling in the room with the hooks": 55,
         "ST: koin from shooting the dragon koin in the test your might room": 56,
         "ST: koin from killing the strolling skeleton": 57,

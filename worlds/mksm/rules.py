@@ -109,7 +109,7 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     world.set_rule(world.get_location("ST: koin above Baraka's entrance"), WALL_RUN & DOUBLE_JUMP)
     world.set_rule(world.get_location("ST: koin from the broken statue"), FIST_OF_RUIN)
     world.set_rule(world.get_location("ST: koin above the broken statue"), FIST_OF_RUIN)
-    world.set_rule(world.get_location("ST: koin from high button in the rolling spikes room"), DOUBLE_JUMP)
+    world.set_rule(world.get_location("ST: koin from a high button in the rolling spikes room"), DOUBLE_JUMP)
     world.set_rule(world.get_location("ST: koin above the ceiling in the room with the hooks"), DOUBLE_JUMP)
     world.set_rule(world.get_location("ST: koin behind statue in the falling spike trap room"), FIST_OF_RUIN)
     world.set_rule(
