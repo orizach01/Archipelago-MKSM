@@ -43,11 +43,13 @@ def set_all_rules(world: MKSMWorld) -> None:
 
 def set_purchase_rules(world: MKSMWorld) -> None:
     tiers = {
+        0: [
+            "Purchase upgrade - R2 2",
+        ],
         1: [
             "Purchase upgrade - Square 2",
             "Purchase upgrade - Triangle 2",
             "Purchase upgrade - Circle 2",
-            "Purchase upgrade - R2 2",
         ],
         2: [
             "Purchase combo 1",

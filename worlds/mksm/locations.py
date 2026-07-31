@@ -241,18 +241,9 @@ def create_all_locations(world: MKSMWorld) -> None:
 
 
 def create_region_locations(world: MKSMWorld) -> None:
-    # TODO test for vs mode characters
-    can_shoot_moon = world.options.character.value in (Character.option_liu_kang, Character.option_kung_lao)
-
     for region_name in REGION_NAME_LOCATIONS:
         region = world.get_region(region_name)
         region_locations = REGION_NAME_LOCATIONS[region_name]
-
-        if not can_shoot_moon:
-            region_locations = {
-                name: loc_id for name, loc_id in region_locations.items()
-                if name != "GL: koin from shooting the moon"
-            }
 
         region.add_locations(region_locations, MKSMLocation)
 

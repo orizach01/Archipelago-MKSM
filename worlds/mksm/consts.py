@@ -255,6 +255,10 @@ DEFAULT_EVENT_ARRAY = [
     *_make_event(0x8e, 0x41),
     *_make_event(0x8e, 0x26),
 
+    # moon red koin event
+    *_make_event(0x62, 0x3f),
+    *_make_event(0x62, 0x44),
+
     # events that spawn xp and the red koin in the brutality room
     # prevents needing to beat reptile to get that red koin
     # only one of the events here actually spawns the red koin, I didn't bother checking which one is it
