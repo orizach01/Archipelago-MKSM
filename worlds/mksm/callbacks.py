@@ -40,7 +40,6 @@ if TYPE_CHECKING:
 async def game_watcher(ctx: MKSMContext) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
-    # TODO check soul tomb destroyed events
     # TODO check portal start area open world style -> update: address in code notes for pause menu area
     # TODO open co op doors from start
     # TODO! change purchase location tiers to be by price, and revert combos to be separate
@@ -224,14 +223,13 @@ async def check_move_upgrades(ctx: MKSMContext) -> None:
         triangle = min(current_upgrades.triangle, 4)
         circle = min(current_upgrades.circle, 5)
         r2 = min(current_upgrades.r2, 5)
+
         checked_names = set()
         checked_names |= {f"Purchase upgrade - Square {i}" for i in range(2, square + 1)}
         checked_names |= {f"Purchase upgrade - Triangle {i}" for i in range(2, triangle + 1)}
         checked_names |= {f"Purchase upgrade - Circle {i}" for i in range(2, circle + 1)}
         checked_names |= {f"Purchase upgrade - R2 {i}" for i in range(2, r2 + 1)}
-
-        prefixes = ["1st", "2nd", "3rd", "4th", "5th"]
-        checked_names |= {f"Purchase {prefixes[i]} combo" for i in range(current_upgrades.combo)}
+        checked_names |= {f"Purchase combo {i}" for i in range(1, current_upgrades.combo + 1)}
 
         if not checked_names:
             return
@@ -272,11 +270,11 @@ def set_move_upgrades(ctx: MKSMContext) -> None:
                 ]
             )
 
-            combo_1 = LOCATION_NAME_TO_ID[f"Purchase 1st combo"] in ctx.checked_locations
-            combo_2 = LOCATION_NAME_TO_ID[f"Purchase 2nd combo"] in ctx.checked_locations
-            combo_3 = LOCATION_NAME_TO_ID[f"Purchase 3rd combo"] in ctx.checked_locations
-            combo_4 = LOCATION_NAME_TO_ID[f"Purchase 4th combo"] in ctx.checked_locations
-            combo_5 = LOCATION_NAME_TO_ID[f"Purchase 5th combo"] in ctx.checked_locations
+            combo_1 = LOCATION_NAME_TO_ID[f"Purchase combo 1"] in ctx.checked_locations
+            combo_2 = LOCATION_NAME_TO_ID[f"Purchase combo 2"] in ctx.checked_locations
+            combo_3 = LOCATION_NAME_TO_ID[f"Purchase combo 3"] in ctx.checked_locations
+            combo_4 = LOCATION_NAME_TO_ID[f"Purchase combo 4"] in ctx.checked_locations
+            combo_5 = LOCATION_NAME_TO_ID[f"Purchase combo 5"] in ctx.checked_locations
 
             ctx.game_interface.set_move_upgrades(square=square, triangle=triangle, circle=circle, r2=r2)
             ctx.game_interface.set_combos(combo_1=combo_1,

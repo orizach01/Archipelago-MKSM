@@ -48,25 +48,25 @@ def set_purchase_rules(world: MKSMWorld) -> None:
             "Purchase upgrade - Triangle 2",
             "Purchase upgrade - Circle 2",
             "Purchase upgrade - R2 2",
-            "Purchase 1st combo",
         ],
         2: [
+            "Purchase combo 1",
+            "Purchase combo 2",
+            "Purchase combo 3",
+            "Purchase combo 4",
+            "Purchase combo 5",
+        ],
+        3: [
             "Purchase upgrade - Square 3",
             "Purchase upgrade - Triangle 3",
             "Purchase upgrade - Circle 3",
             "Purchase upgrade - R2 3",
-            "Purchase 2nd combo",
-            "Purchase 3rd combo",
-        ],
-        3: [
             "Purchase upgrade - Square 4",
             "Purchase upgrade - Triangle 4",
             "Purchase upgrade - Circle 4",
-            "Purchase upgrade - Circle 5",
             "Purchase upgrade - R2 4",
+            "Purchase upgrade - Circle 5",
             "Purchase upgrade - R2 5",
-            "Purchase 4th combo",
-            "Purchase 5th combo",
         ],
     }
 
@@ -93,13 +93,12 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     )
     world.set_rule(
         world.get_location("WSA: koin on a high wall near the lava pots"),
-        WALL_RUN & WALL_JUMP & DOUBLE_JUMP # can be WALL_JUMP & DOUBLE_JUMP but inconsistent
+        WALL_RUN & WALL_JUMP & DOUBLE_JUMP  # can be WALL_JUMP & DOUBLE_JUMP but inconsistent
     )
     world.set_rule(world.get_location("P: koin from performing a fatality on the dragon symbol"), FATALITY)
     world.set_rule(world.get_location("N: koin above the arch"), LONG_JUMP | DOUBLE_JUMP)
     world.set_rule(world.get_location("LF: koin behind the living tree"), DOUBLE_JUMP)
     world.set_rule(world.get_location("LF: Forest health upgrade"), WALL_CLIMB | DOUBLE_JUMP)
-    world.set_rule(world.get_location("LF: koin from breaking the fast statues"), REPTILE)
     world.set_rule(world.get_location("W: koin found on the lion statue"), DOUBLE_JUMP | WALL_RUN)
     world.set_rule(
         world.get_location("DP: koin from drowning enemies in both pools"),

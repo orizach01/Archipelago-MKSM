@@ -153,11 +153,11 @@ PURCHASE_LOCATIONS = {
     "Purchase upgrade - R2 3": 94,
     "Purchase upgrade - R2 4": 95,
     "Purchase upgrade - R2 5": 96,
-    "Purchase 1st combo": 97,
-    "Purchase 2nd combo": 98,
-    "Purchase 3rd combo": 99,
-    "Purchase 4th combo": 100,
-    "Purchase 5th combo": 101,
+    "Purchase combo 1": 97,
+    "Purchase combo 2": 98,
+    "Purchase combo 3": 99,
+    "Purchase combo 4": 100,
+    "Purchase combo 5": 101,
 }
 
 FINISHING_MOVES_LOCATIONS: dict[int, dict[str, int]] = {
@@ -261,11 +261,9 @@ def create_purchase_locations(world: MKSMWorld) -> None:
     menu = world.get_region(world.origin_region_name)
     amounts = CHARACTER_PURCHASE_AMOUNTS[world.options.character.value]
 
-    prefixes = ["1st", "2nd", "3rd", "4th", "5th"]
-
     combo_locs = {
-        f"Purchase {prefixes[i]} combo": LOCATION_NAME_TO_ID[f"Purchase {prefixes[i]} combo"]
-        for i in range(amounts.combo)
+        f"Purchase combo {i}": LOCATION_NAME_TO_ID[f"Purchase combo {i}"]
+        for i in range(1, amounts.combo + 1)
     }
 
     move_amounts = {"Square": amounts.square, "Triangle": amounts.triangle,
