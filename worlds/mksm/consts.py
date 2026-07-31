@@ -255,8 +255,19 @@ DEFAULT_EVENT_ARRAY = [
     *_make_event(0x8e, 0x41),
     *_make_event(0x8e, 0x26),
 
-    # event of cutscene after reptile, enables the brutality room red koin without needing to beat reptile
-    *_make_event(0x8f, 0x21),
+    # events that spawn xp and the red koin in the brutality room
+    # prevents needing to beat reptile to get that red koin
+    # only one of the events here actually spawns the red koin, I didn't bother checking which one is it
+    *_make_event(0x8e, 0x37),
+    *_make_event(0x8e, 0x64),
+    *_make_event(0x8e, 0x5d),
+    *_make_event(0x8e, 0x5e),
+    *_make_event(0x8e, 0x5f),
+    *_make_event(0x8e, 0x60),
+    *_make_event(0x8e, 0x61),
+    *_make_event(0x8e, 0x62),
+    *_make_event(0x8e, 0x63),
+
 ]
 
 # these events open the door to the foundry.
@@ -393,3 +404,4 @@ CHARACTER_BLOOD_BAR_AMOUNT = {
 }
 
 SAVING_ANIMATION = 0xF
+# TODO animatio x10 pause message timer (ability obtained animation)

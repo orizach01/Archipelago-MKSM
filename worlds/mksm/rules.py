@@ -87,10 +87,13 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     world.set_rule(world.get_location("GL: koin above the doorway"), DOUBLE_JUMP | WALL_JUMP)
     world.set_rule(world.get_location("GL: koin above the breakable door"), DOUBLE_JUMP | WALL_JUMP)
     world.set_rule(world.get_location("WSA: koin after the tree branch swing"), SWING | DOUBLE_JUMP)
-    world.set_rule(world.get_location("WSA: koin after the bamboo swing"), SWING | (WALL_RUN & DOUBLE_JUMP))
+    world.set_rule(
+        world.get_location("WSA: koin after the bamboo swing"),
+        SWING | (DOUBLE_JUMP & (WALL_RUN | WALL_JUMP))
+    )
     world.set_rule(
         world.get_location("WSA: koin on a high wall near the lava pots"),
-        WALL_RUN & WALL_JUMP & DOUBLE_JUMP
+        WALL_RUN & WALL_JUMP & DOUBLE_JUMP # can be WALL_JUMP & DOUBLE_JUMP but inconsistent
     )
     world.set_rule(world.get_location("P: koin from performing a fatality on the dragon symbol"), FATALITY)
     world.set_rule(world.get_location("N: koin above the arch"), LONG_JUMP | DOUBLE_JUMP)
@@ -165,7 +168,7 @@ def connect_regions(world: MKSMWorld) -> None:
     portal_2.connect(netherrealm, rule=SWING)
 
     portal_1.connect(forest, rule=FIST_OF_RUIN)
-    forest.connect(forest_bridges, rule=SWING)
+    forest.connect(forest_bridges, rule=SWING & WALL_CLIMB)
     forest.connect(forest_reptile)
 
     portal_2.connect(wasteland_1, rule=WALL_CLIMB & (WALL_JUMP | (WALL_RUN & DOUBLE_JUMP)))
