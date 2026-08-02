@@ -115,7 +115,7 @@ ADDRESSES = {
             "ST: koin from killing the strolling skeleton": {
                 0x005d82a0: [3, 4, 5, 6, 7], 0x005d82a1: [0], 0x005d82a5: [5], 0x005d82a7: [7]
             },
-            "ST: koin from the button after defeating orochi hellbeast": {0x005d829f: [5, 6, 7], 0x005d82a0: [0, 1, 2]},
+            "ST: koin from the button in Orochi hellbeast's room": {0x005d829f: [5, 6, 7], 0x005d82a0: [0, 1, 2]},
             "ST: koin from impaling an enemy on the rising spikes": {0x005d8294: [1, 2, 3], 0x005d82a9: [0]},
             "ST: koin from launching a tarkata on the flying bird": {0x005d829d: [3, 4], 0x005d829e: [1],
                                                                      0x005d82a5: [6]},
@@ -222,7 +222,7 @@ EVENTS_TO_LOCATION_NAME = {
     _make_event(0xc3, 0x3a): "EM: Kitana Mileena and Jade defeated",
     _make_event(0xc3, 0x3e): "EM: Fist of Ruin obtained",
     _make_event(0x48, 0x06): "F: Kano defeated",
-    _make_event(0x49, 0x06): "F: Shao Kahn defeated",
+    _make_event(0x49, 0x06): "F: Shao Kahn defeated", #TODO never triggered lol
 
 }
 

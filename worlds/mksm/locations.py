@@ -102,7 +102,7 @@ REGION_NAME_LOCATIONS = {
         "ST: koin above the ceiling in the room with the hooks": 55,
         "ST: koin from shooting the dragon koin in the test your might room": 56,
         "ST: koin from killing the strolling skeleton": 57,
-        "ST: koin from the button after defeating orochi hellbeast": 58,
+        "ST: koin from the button in Orochi hellbeast's room": 58,
         "ST: koin from impaling an enemy on the rising spikes": 59,
         "ST: koin from launching a tarkata on the flying bird": 60,
         "ST: koin behind statue in the falling spike trap room": 61,

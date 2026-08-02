@@ -9,7 +9,6 @@ Item granting / other location types come later.
 from __future__ import annotations
 
 import asyncio
-import time
 from typing import TYPE_CHECKING
 
 from NetUtils import ClientStatus
@@ -18,6 +17,8 @@ from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, ANI
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 from .options import BossGoal
+
+FINAL_BOSS_LOCATION = "F: Shao Kahn defeated"
 
 MAIN_BOSS_LOCATIONS = [
     "EM: Kitana Mileena and Jade defeated",
@@ -37,54 +38,53 @@ if TYPE_CHECKING:
     from .MKSMClient import MKSMContext
 
 
-async def game_watcher(ctx: MKSMContext) -> None:
+async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
     # TODO grant fake fist of ruin for soul tomb room? area 0x04
+    # TODO grant fake fist of ruin for sub zero boss room? area 0x2c
+    # TODO grant fake climb for reptile room? area 0x90
     # TODO check portal start area open world style -> update: address in code notes for pause menu area
     # TODO open co op doors from start
     # TODO! change purchase location tiers to be by price, and revert combos to be separate
     # TODO smoke missions
     # TODO mileena boss is bugged, check which events are needed to not bug her -> update: need to restart game to fix
+    # TODO add foundry door unlock as an item!! ( 5 medalions!!!)
+    # TODO add a sign in pause menu that its in sync and can purchase safely
+    # TODO nice error message when exiting pcsx2/disconnecting from server
 
-    if ctx.game_interface.current_game is None:
-        return  # not connected to the emulator/game yet
+    if ap_connected and ctx.slot_data is not None:
+        loop = asyncio.get_running_loop()
+        current_time = loop.time()
+        dt = current_time - ctx.last_time
+        ctx.last_time = current_time
 
-    loop = asyncio.get_running_loop()
-    current_time = loop.time()
-    dt = current_time - ctx.last_time
-    ctx.last_time = current_time
+        read_game_state(ctx)
+        clear_events(ctx)
+        open_foundry_door_after_bosses(ctx)
+        clear_exp(ctx)
 
-    read_game_state(ctx)
-    ctx.is_paused = ctx.game_interface.is_paused()
-    clear_events(ctx)
-    open_foundry_door_after_bosses(ctx)
-    clear_exp(ctx)
+        set_character(ctx)
+        set_move_upgrades(ctx)
+        set_abilities(ctx)
+        set_health_upgrades(ctx)
+        set_blood_bar(ctx)
+        update_koin_counter(ctx)
+        force_ui(ctx)
 
-    set_character(ctx)
-    set_move_upgrades(ctx)
-    set_abilities(ctx)
-    set_health_upgrades(ctx)
-    set_blood_bar(ctx)
-    update_koin_counter(ctx)
-    force_ui(ctx)
+        update_message(ctx, dt * 10000)
 
-    update_message(ctx, dt * 10000)
-
-    await check_death(ctx)
-    await check_move_upgrades(ctx)
-    await sync_red_koins(ctx)
-    await update_events_in_server(ctx)
-    await update_exp_in_server(ctx)
-    await set_exp_items(ctx)
-    await check_red_koins(ctx)
-    await check_events(ctx)
-    await check_finishing_moves(ctx)
-    await check_completed_game(ctx)
-
-    if ctx.first_loop:
-        print("first loop finished")
-        ctx.first_loop = False
+        await check_death(ctx)
+        await check_move_upgrades(ctx)
+        await check_red_koins(ctx)
+        await check_events(ctx)
+        await check_finishing_moves(ctx)
+        await check_final_boss(ctx)
+        await check_completed_game(ctx)
+        await sync_red_koins(ctx)
+        await update_events_in_server(ctx)
+        await update_exp_in_server(ctx)
+        await set_exp_items(ctx)
 
 
 def clear_events(ctx: MKSMContext):
@@ -140,8 +140,6 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
     if not ctx.game_interface.is_currently_saving():
         while len(events) > len(server_array) // 8 and events[-1][0] == current_area:
             events.pop()
-    # else:
-    #     print('saving lol')  # TODO remove later
 
     filtered_array = [byte for event in events for byte in event]
 
@@ -413,7 +411,7 @@ async def check_completed_game(ctx: MKSMContext):
 
     if boss_goal >= BossGoal.option_main_bosses:
         required_boss_locations += MAIN_BOSS_LOCATIONS
-        required_boss_locations.append("F: Shao Kahn defeated")
+        required_boss_locations.append(FINAL_BOSS_LOCATION)
     if boss_goal >= BossGoal.option_main_and_secret_bosses:
         required_boss_locations += SECRET_BOSS_LOCATIONS
 
@@ -494,3 +492,8 @@ def update_message(ctx: MKSMContext, dt: float) -> None:
 
 def force_ui(ctx: MKSMContext):
     ctx.game_interface.force_ui()
+
+
+async def check_final_boss(ctx: MKSMContext):
+    if ctx.game_state == GameState.GAME_BEATEN_FMV and ctx.prev_state == GameState.GAMEPLAY:
+        await ctx.check_locations([LOCATION_NAME_TO_ID[FINAL_BOSS_LOCATION]])

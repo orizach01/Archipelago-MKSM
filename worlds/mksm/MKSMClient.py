@@ -13,8 +13,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import multiprocessing
 import sys
+import traceback
 import typing
+from typing import Optional
 from collections import deque
 
 from BaseClasses import ItemClassification
@@ -185,12 +188,14 @@ class MKSMContext(CommonContext):
     message_timer: float | None
     current_message: str | None
     last_time: float
+    last_error_message: Optional[str] = None
 
     def __init__(self, server_address: str | None, password: str | None) -> None:
         super().__init__(server_address, password)
+        self.is_connected_to_server = False
+        self.is_connected_to_game = False
         self.is_paused = False
         self.game_interface = MKSMInterface(logger)
-        self.synced_koins = False  # set True after the one-time on-connect memory sync
         self.game_state = GameState.BOOTING
         self.prev_state = GameState.BOOTING
         self.slot_data = None
@@ -203,7 +208,7 @@ class MKSMContext(CommonContext):
         self.current_message = None
 
     def ready_to_connect(self) -> bool:
-        return self.emulator_settled and self.game_interface.get_game_state() == GameState.MAIN_MENU
+        return self.is_connected_to_game and self.game_interface.get_game_state() == GameState.MAIN_MENU
 
     async def connect(self, address: str | None = None) -> None:
         # gates the GUI's Connect button too, since it calls ctx.connect() directly
@@ -262,91 +267,135 @@ class MKSMContext(CommonContext):
                 self.message_queue.append(message)
 
 
-async def game_watcher(ctx: MKSMContext) -> None:
+def update_connection_status(ctx: MKSMContext, status: bool):
+    if ctx.is_connected_to_game == status:
+        return
+
+    if status:
+        logger.info("Connected to MKSM")
+    else:
+        logger.info("Unable to connect to the PCSX2 instance, attempting to reconnect...")
+
+    ctx.is_connected_to_game = status
+
+
+async def paused_task(ctx: MKSMContext):
     while not ctx.exit_event.is_set():
         try:
-            await asyncio.wait_for(ctx.watcher_event.wait(), 0.01)
-        except asyncio.TimeoutError:
-            pass
-        ctx.watcher_event.clear()
-
-        if not ctx.game_interface.get_connection_state():
-            ctx.synced_koins = False  # re-sync on the next successful (re)connect
-            ctx.game_interface.connect_to_game()
-            await asyncio.sleep(EMULATOR_RECONNECT_DELAY)
+            if ctx.is_connected_to_game:
+                ctx.is_paused = ctx.game_interface.is_paused()
+            await asyncio.sleep(0.00001)
+        except ConnectionError:
+            ctx.game_interface.disconnect_from_game()
+        except Exception as e:
+            if isinstance(e, RuntimeError):
+                logger.error(str(e))
+            else:
+                logger.error(traceback.format_exc())
+            await asyncio.sleep(3)
             continue
 
-        if ctx.server is None or ctx.slot is None:
-            # don't connect to the AP server until a settled read shows the game sitting at
-            # the main menu - connecting while memory is still mid-boot/reset (and possibly
-            # garbage) is exactly what's caused the reset-related corruption bugs elsewhere
-            # in this client. "settled" just means we've already read game state once since
-            # the emulator connection was (re)established - this loop's previous iteration.
-            if (ctx.emulator_settled and ctx.pending_server_address
-                    and ctx.game_interface.get_game_state() == GameState.MAIN_MENU):
-                ctx.server_address = ctx.pending_server_address
-                ctx.pending_server_address = None
-                ctx.server_task = asyncio.create_task(server_loop(ctx), name="ServerLoop")
 
-            ctx.emulator_settled = True
-            continue  # not connected to the AP server yet
-
+async def pcsx2_sync_task(ctx: MKSMContext):
+    logger.info("Starting MKSM Connector, attempting to connect to emulator...")
+    ctx.game_interface.connect_to_game()
+    while not ctx.exit_event.is_set():
         try:
-            loop = asyncio.get_running_loop()
-            ctx.last_time = loop.time()
-            await run_callbacks(ctx)
-        except Exception:
-            # Without this, any exception raised anywhere in the callback chain
-            # (a PINE read/write hiccup, a bad address, anything) kills this
-            # task silently and for good - the watcher just stops ticking with
-            # no visible error until the client process exits.
-            logger.exception("Error while running MKSM game watcher callbacks")
+            is_connected = ctx.game_interface.get_connection_state()
+            update_connection_status(ctx, is_connected)
+            if is_connected:
+                await _handle_game_ready(ctx)
+            else:
+                await _handle_game_not_ready(ctx)
+        except ConnectionError:
+            ctx.game_interface.disconnect_from_game()
+        except Exception as e:
+            if isinstance(e, RuntimeError):
+                logger.error(str(e))
+            else:
+                logger.error(traceback.format_exc())
+            await asyncio.sleep(3)
+            continue
 
 
-async def main(args) -> None:
-    ctx = MKSMContext(None, args.password)
-    ctx.auth = args.name
-    ctx.pending_server_address = args.connect  # held back until game_watcher's connect gate opens
+async def _handle_game_ready(ctx: MKSMContext) -> None:
+    connected_to_server = (ctx.server is not None) and (ctx.slot is not None)
 
-    if gui_enabled:
-        ctx.run_gui()
+    new_connection = ctx.is_connected_to_server != connected_to_server
+
+    if new_connection:
+        loop = asyncio.get_running_loop()
+        ctx.last_time = loop.time()
+
+    await run_callbacks(ctx, connected_to_server)
+
+    if ctx.server:
+        ctx.last_error_message = None
+        if not ctx.slot:
+            await asyncio.sleep(1)
+            return
+
+        await asyncio.sleep(0.001)
     else:
+        message = "Waiting for player to connect to server"
+        if ctx.last_error_message is not message:
+            logger.info("Waiting for player to connect to server")
+            ctx.last_error_message = message
+        await asyncio.sleep(1)
+
+
+async def _handle_game_not_ready(ctx: MKSMContext):
+    """If the game is not connected, this will attempt to retry connecting to the game."""
+    ctx.game_interface.connect_to_game()
+    await asyncio.sleep(3)
+
+
+def launch_client():
+    Utils.init_logging("MKSM Client")
+
+    async def main():
+        multiprocessing.freeze_support()
+        logger.info("main")
+        parser = get_base_parser()
+        args = parser.parse_args()
+        ctx = MKSMContext(args.connect, args.password)
+
+        logger.info("Connecting to server...")
+        ctx.server_task = asyncio.create_task(server_loop(ctx), name="Server Loop")
+        ctx.tags.add("Client")
+
+        if gui_enabled:
+            ctx.run_gui()
         ctx.run_cli()
 
-    ctx.set_notify("EVENT_ARRAY")
-    ctx.set_notify("CURRENT_EXP")
-    ctx.set_notify("EXP_ITEMS_GIVEN")
-    watcher_task = asyncio.create_task(game_watcher(ctx), name="MKSMGameWatcher")
+        ctx.set_notify("EVENT_ARRAY")
+        ctx.set_notify("CURRENT_EXP")
+        ctx.set_notify("EXP_ITEMS_GIVEN")
 
-    await ctx.exit_event.wait()
+        logger.info("Running game...")
+        ctx.pcsx2_sync_task = asyncio.create_task(pcsx2_sync_task(ctx), name="PCSX2 Sync")
+        ctx.is_paused_task = asyncio.create_task(paused_task(ctx), name="Paused Sync")
 
-    ctx.game_interface.disconnect_from_game()
-    await watcher_task
-    await ctx.shutdown()
+        await ctx.exit_event.wait()
+        ctx.server_address = None
 
+        await ctx.shutdown()
 
-def launch(*launch_args: str) -> None:
+        if ctx.pcsx2_sync_task:
+            await asyncio.sleep(3)
+            await ctx.pcsx2_sync_task
+
+        if ctx.is_paused_task:
+            await asyncio.sleep(3)
+            await ctx.is_paused_task
+
     import colorama
 
-    if not logging.getLogger().handlers:
-        # Launched via the graphical Launcher's component click: this runs in a fresh
-        # multiprocessing.Process with no console attached, and the __main__ guard below
-        # never fires (we're called as an imported function, not as the main script), so
-        # logging is otherwise never configured here - any startup exception would be
-        # completely invisible (no console, no log file) without this.
-        Utils.init_logging("MKSMClient", exception_logger="Client")
+    colorama.init()
 
-    parser = get_base_parser(description="Mortal Kombat: Shaolin Monks Archipelago Client")
-    parser.add_argument("--name", default=None, help="Slot Name to connect as.")
-    parser.add_argument("url", nargs="?", help="Archipelago connection url")
-    args = parser.parse_args(launch_args)
-    args = handle_url_arg(args, parser=parser)
-
-    colorama.just_fix_windows_console()
-    asyncio.run(main(args))
+    asyncio.run(main())
     colorama.deinit()
 
 
 if __name__ == "__main__":
-    Utils.init_logging("MKSMClient", exception_logger="Client")
-    launch(*sys.argv[1:])
+    launch_client()

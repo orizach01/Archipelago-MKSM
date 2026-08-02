@@ -25,7 +25,7 @@ def run_client(*args: str) -> None:
     :param *args: Variable length argument list passed to the client.
     """
     print("Running The Mortal Kombat: Shaolin Monks Client")
-    from .MKSMClient import launch as main
+    from .MKSMClient import launch_client as main
 
     launch_subprocess(main, name="MKSMClient", args=args)
 
