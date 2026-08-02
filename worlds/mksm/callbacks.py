@@ -88,17 +88,19 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
 
 
 def clear_events(ctx: MKSMContext):
-    if ctx.game_state != GameState.GAMEPLAY:
-        if "EVENT_ARRAY" not in ctx.stored_data or ctx.stored_data["EVENT_ARRAY"] is None:
-            server_array = DEFAULT_EVENT_ARRAY
-        else:
-            server_array = list(ctx.stored_data["EVENT_ARRAY"])
+    if ctx.game_state == GameState.GAMEPLAY:
+        return
 
-        ctx.game_interface.clear_event_log(bytes(server_array))
+    if "EVENT_ARRAY" not in ctx.stored_data or ctx.stored_data["EVENT_ARRAY"] is None:
+        server_array = DEFAULT_EVENT_ARRAY
+    else:
+        server_array = list(ctx.stored_data["EVENT_ARRAY"])
+
+    ctx.game_interface.clear_event_log(bytes(server_array))
 
 
 def open_foundry_door_after_bosses(ctx: MKSMContext) -> None:
-    if not ctx.game_state == GameState.GAMEPLAY:
+    if ctx.game_state != GameState.GAMEPLAY:
         return
 
     bosses_defeated = all(LOCATION_NAME_TO_ID[name] in ctx.checked_locations for name in MAIN_BOSS_LOCATIONS)
@@ -128,7 +130,7 @@ def clear_exp(ctx: MKSMContext) -> None:
 
 
 async def update_events_in_server(ctx: MKSMContext) -> None:
-    if not ctx.game_state == GameState.GAMEPLAY:
+    if ctx.game_state != GameState.GAMEPLAY:
         return
 
     current_events = list(ctx.game_interface.get_event_block())
@@ -137,6 +139,7 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
     events = [tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)]
     server_array = ctx.stored_data.get("EVENT_ARRAY") or []
 
+    # removing current room's events from the end of the array while not currently saving the game
     if not ctx.game_interface.is_currently_saving():
         while len(events) > len(server_array) // 8 and events[-1][0] == current_area:
             events.pop()

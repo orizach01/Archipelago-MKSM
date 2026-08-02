@@ -180,9 +180,7 @@ class MKSMContext(CommonContext):
     set_upgrades_in_pause: bool = False
     health_upgrades: int = 0
     exp_items_given: int = 0
-    first_loop: bool
     pending_server_address: str | None
-    emulator_settled: bool
     was_dead: bool
     message_queue: deque
     message_timer: float | None
@@ -199,9 +197,7 @@ class MKSMContext(CommonContext):
         self.game_state = GameState.BOOTING
         self.prev_state = GameState.BOOTING
         self.slot_data = None
-        self.first_loop = True
         self.pending_server_address = None
-        self.emulator_settled = False
         self.was_dead = False
         self.message_queue = deque()
         self.message_timer = None  # None means no message is currently being displayed
