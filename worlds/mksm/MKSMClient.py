@@ -180,7 +180,6 @@ class MKSMContext(CommonContext):
     prev_state: GameState
     is_paused: bool
     set_upgrades_in_pause: bool = False
-    moves_label_synced: bool | None = None  # None means nothing written yet
     health_upgrades: int = 0
     exp_items_given: int = 0
     pending_server_address: str | None

@@ -194,10 +194,10 @@ def read_game_state(ctx) -> None:
     if current_state != ctx.game_state:
         ctx.prev_state = ctx.game_state
         ctx.game_state = current_state
-        # get_event_block trusts an unchanged TOTAL_EVENTS to mean unchanged contents,
-        # which holds while the game appends but not across a save load - and a load
-        # always passes through a non-gameplay state, so refresh on every transition.
-        ctx.game_interface.invalidate_event_cache()
+        # Both the read cache and the write skip key off TOTAL_EVENTS, which a save load
+        # can leave unchanged while replacing the array wholesale. A load always passes
+        # through a non-gameplay state, so drop both beliefs on every transition.
+        ctx.game_interface.forget_event_log_state()
 
 
 async def sync_red_koins(ctx: MKSMContext) -> None:

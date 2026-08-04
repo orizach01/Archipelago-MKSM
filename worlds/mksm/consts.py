@@ -208,8 +208,6 @@ ADDRESSES = {
         "EXP_FMT": 0x5770d0,
 
         "CURRENT_AREA": 0xc29748,
-
-        "MOVES_STRING": 0xc46b00,
     }
 }
 

@@ -172,15 +172,13 @@ class MKSMInterface(GameInterface):
     def is_paused(self) -> bool:
         return bool(self._read8(self.addresses.get("PAUSE_FLAG")))
 
-    # None means "we don't know what is in the array yet", which forces a full wipe.
-    _event_log_high_water: Optional[int] = None
     _event_block_cache: Optional[bytes] = None
     _event_block_count: Optional[int] = None  # TOTAL_EVENTS the cache was built from
+    _last_written: Optional[bytes] = None  # event data we last pushed into the array
 
     def disconnect_from_game(self):
         # a reconnect may be a different run entirely, so nothing we knew still holds
-        self._event_log_high_water = None
-        self.invalidate_event_cache()
+        self.forget_event_log_state()
         super().disconnect_from_game()
 
     def invalidate_event_cache(self) -> None:
@@ -189,29 +187,33 @@ class MKSMInterface(GameInterface):
         self._event_block_cache = None
         self._event_block_count = None
 
+    def forget_event_log_state(self) -> None:
+        """Drop everything we believe about the event log, reads and writes both. Call
+        on any game-state transition: a save load can replace the array without the
+        count changing, which would fool both the read cache and the write skip."""
+        self.invalidate_event_cache()
+        self._last_written = None
+
     def clear_event_log(self, event_data: bytes) -> None:
         event_log_addr = self.addresses.get("EVENT_LOG_ARRAY")
         total_events_addr = self.addresses.get("TOTAL_EVENTS")
+        expected_count = len(event_data) // EVENT_RECORD_SIZE
 
-        # Only zero as far as the array is actually dirty - whatever the game currently
-        # claims plus whatever we last wrote ourselves - instead of blanking all 16000
-        # bytes. PINE writes 8 bytes per round-trip, so the flat wipe cost 2000 round
-        # trips on every non-gameplay tick regardless of how large the save really was.
-        if self._event_log_high_water is None:
-            dirty = EVENT_LOG_SIZE  # unknown prior contents, so clear everything once
-        else:
-            live_bytes = self._read32(total_events_addr) * EVENT_RECORD_SIZE
-            dirty = max(live_bytes, self._event_log_high_water)
-            if not 0 <= dirty <= EVENT_LOG_SIZE:
-                dirty = EVENT_LOG_SIZE  # garbage count - fall back to a full wipe
+        # clear_events calls this every non-gameplay tick with the same server array, so
+        # the waste is re-issuing an identical write, not the size of it. Skip when the
+        # array already holds exactly this and the game hasn't touched the count since:
+        # one round-trip instead of 2001. Never shrink the write itself - the trailing
+        # zeros are what let get_event_block recognise a garbage TOTAL_EVENTS.
+        if self._last_written == event_data and self._read32(total_events_addr) == expected_count:
+            return
 
-        padding = max(0, dirty - len(event_data))
-        self._write_bytes(event_log_addr, bytes(event_data) + bytes(padding))
-        self._write32(total_events_addr, len(event_data) // EVENT_RECORD_SIZE)
+        buffer = bytearray(EVENT_LOG_SIZE)
+        buffer[0:len(event_data)] = event_data
+        self._write_bytes(event_log_addr, bytes(buffer))
+        self._write32(total_events_addr, expected_count)
 
-        # everything past the data we just wrote is now zeroed
-        self._event_log_high_water = len(event_data)
         self.invalidate_event_cache()
+        self._last_written = bytes(event_data)
 
     def get_event_block(self) -> bytes:
         total_events = self._read32(self.addresses.get("TOTAL_EVENTS"))
@@ -418,18 +420,3 @@ class MKSMInterface(GameInterface):
         # TODO check for other cutscenes maybe?
         return (self.get_current_animation() in ANIMATIONS_TO_LOCATION_NAME.keys() or
                 self.get_current_animation() == ABILITY_ANIMATION)
-
-    def set_moves_string(self, is_synced: bool):
-        moves_str_addr = self.addresses.get("MOVES_STRING")
-
-        if is_synced:
-            message = "Moves"
-        else:
-            message = "NOT SYNCED"
-
-        message = message.encode("ASCII", errors="ignore")
-        message = message[:127]
-
-        str_arr = bytearray(127)
-        str_arr[0:len(message)] = message
-        self._write_bytes(moves_str_addr, bytes(str_arr))
