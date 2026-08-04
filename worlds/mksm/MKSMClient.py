@@ -3,35 +3,31 @@ MKSMClient.py
 
 Archipelago client for Mortal Kombat: Shaolin Monks.
 Connects to a running PCSX2 instance via the PINE protocol and bridges
-location checks to the Archipelago server.
-
-Minimal scope for now: detects collected red koins only. Item granting
-and other location categories come later.
+location checks and received items to the Archipelago server.
 """
 
 from __future__ import annotations
 
 import asyncio
-import logging
 import multiprocessing
-import sys
 import traceback
 import typing
-from typing import Optional
 from collections import deque
 
-from BaseClasses import ItemClassification
 # CommonClient import first to trigger ModuleUpdater
 from CommonClient import CommonContext, server_loop, get_base_parser, handle_url_arg, logger, \
     ClientCommandProcessor, gui_enabled
 
 import Utils
-from worlds.mksm.consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME
+from worlds.mksm.consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, \
+    chunk_events, flatten_events
 
 from .MKSMInterface import MKSMInterface
-from .callbacks import game_watcher as run_callbacks
+from .callbacks import game_watcher as run_callbacks, on_pause_changed
 
 EMULATOR_RECONNECT_DELAY = 5  # seconds between PCSX2 connection attempts
+TICK_INTERVAL = 0.01  # seconds between full game_watcher passes
+MAX_QUEUED_MESSAGES = 20  # cap on the in-game ticker backlog
 
 
 class MKSMCommandProcessor(ClientCommandProcessor):
@@ -54,19 +50,26 @@ class MKSMCommandProcessor(ClientCommandProcessor):
     #     return True
 
     def _cmd_events(self, n: str = "5") -> bool:
-        """prints the current room and the last n events in the server's saved event log
+        """prints the last event's room and the last n events in the server's saved event log
         Usage: /events   or   /events 10"""
         ctx: MKSMContext = self.ctx
-        current_events = list(ctx.stored_data.get("EVENT_ARRAY") or [])
-        events = [tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)]
+        try:
+            count = max(int(n), 1)
+        except ValueError:
+            self.output(f"'{n}' is not a number")
+            return False
+
+        events = chunk_events(ctx.stored_data.get("EVENT_ARRAY") or [])
 
         if not events:
             self.output("event log is empty")
             return True
 
-        self.output(f"current room: {hex(events[-1][0])}")
+        # this reads the server's stored array, not live game memory, so it's whatever
+        # room last logged an event rather than necessarily where the player is now.
+        self.output(f"last event's room: {hex(events[-1][0])}")
 
-        for event in events[-int(n):]:
+        for event in events[-count:]:
             room, event_code = event[0], event[4]
             location_name = EVENTS_TO_LOCATION_NAME.get(event, "<unmapped>")
             self.output(f"room={hex(room)} event={hex(event_code)} ({location_name})")
@@ -91,20 +94,12 @@ class MKSMCommandProcessor(ClientCommandProcessor):
 
         return True
 
-    def _cmd_connect(self, address: str = "") -> bool:
-        """Connect to a MultiWorld Server"""
-        ctx: MKSMContext = self.ctx
-        if not ctx.ready_to_connect():
-            self.output("can't connect - not at the main menu.")
-            return False
-        return super()._cmd_connect(address)
-
     async def _cmd_removeevent(self) -> bool:
         """removes all events from the room the last event happened in, use in cases of
         softlocks if exited at wrong times, use only on main menu"""
         ctx: MKSMContext = self.ctx
         if ctx.game_state != GameState.MAIN_MENU:
-            self.output("only use /removeevents on main menu")
+            self.output("only use /removeevent on the main menu")
             return True
 
         current_events = ctx.stored_data.get("EVENT_ARRAY")
@@ -113,16 +108,18 @@ class MKSMCommandProcessor(ClientCommandProcessor):
             self.output("no event to remove")
             return True
 
-        events = [tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)]
-        default_events = {tuple(DEFAULT_EVENT_ARRAY[i:i + 8]) for i in range(0, len(DEFAULT_EVENT_ARRAY), 8)}
+        events = chunk_events(current_events)
+        default_events = set(chunk_events(DEFAULT_EVENT_ARRAY))
         last_room = events[-1][0]
         self.output(f"Removing non-default events from last room: {hex(last_room)}")
         remaining_events = [
             event for event in events
             if event[0] != last_room or event in default_events
         ]
-        new_array = [byte for event in remaining_events for byte in event]
+        new_array = flatten_events(remaining_events)
 
+        # no clear_event_log here on purpose: clear_events() pushes the server array back
+        # into the game on the next non-gameplay tick, which the main-menu guard guarantees.
         await ctx.send_msgs([{"cmd": "Set",
                               "key": "EVENT_ARRAY",
                               "operations": [
@@ -139,13 +136,18 @@ class MKSMCommandProcessor(ClientCommandProcessor):
         """adds the default event array's entries back into the current event array
         (without removing anything already there)"""
         ctx: MKSMContext = self.ctx
+        if not ctx.game_interface.get_connection_state():
+            self.output("can't restore default events - not connected to the game.")
+            return False
+        if ctx.game_state == GameState.GAMEPLAY:
+            self.output("only use /default outside of gameplay.")
+            return False
 
         current_events = list(ctx.stored_data.get("EVENT_ARRAY") or [])
-        existing = {tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)}
-        default_events = [tuple(DEFAULT_EVENT_ARRAY[i:i + 8]) for i in range(0, len(DEFAULT_EVENT_ARRAY), 8)]
+        existing = set(chunk_events(current_events))
 
-        missing_events = [event for event in default_events if event not in existing]
-        new_array = current_events + [byte for event in missing_events for byte in event]
+        missing_events = [event for event in chunk_events(DEFAULT_EVENT_ARRAY) if event not in existing]
+        new_array = current_events + flatten_events(missing_events)
 
         ctx.game_interface.clear_event_log(bytes(new_array))
 
@@ -170,7 +172,7 @@ class MKSMCommandProcessor(ClientCommandProcessor):
 
 class MKSMContext(CommonContext):
     game = "Mortal Kombat: Shaolin Monks"
-    items_handling = 0b111  # receive all items, even though we don't act on them yet
+    items_handling = 0b111  # receive all items, including our own and starting inventory
     want_slot_data = True
     command_processor = MKSMCommandProcessor
     game_interface: MKSMInterface
@@ -178,6 +180,7 @@ class MKSMContext(CommonContext):
     prev_state: GameState
     is_paused: bool
     set_upgrades_in_pause: bool = False
+    moves_label_synced: bool | None = None  # None means nothing written yet
     health_upgrades: int = 0
     exp_items_given: int = 0
     pending_server_address: str | None
@@ -186,7 +189,9 @@ class MKSMContext(CommonContext):
     message_timer: float | None
     current_message: str | None
     last_time: float
-    last_error_message: Optional[str] = None
+    last_error_message: str | None = None
+    pcsx2_sync_task: asyncio.Task | None = None
+    is_paused_task: asyncio.Task | None = None
 
     def __init__(self, server_address: str | None, password: str | None) -> None:
         super().__init__(server_address, password)
@@ -199,7 +204,7 @@ class MKSMContext(CommonContext):
         self.slot_data = None
         self.pending_server_address = None
         self.was_dead = False
-        self.message_queue = deque()
+        self.message_queue = deque(maxlen=MAX_QUEUED_MESSAGES)
         self.message_timer = None  # None means no message is currently being displayed
         self.current_message = None
 
@@ -207,11 +212,12 @@ class MKSMContext(CommonContext):
         return self.is_connected_to_game and self.game_interface.get_game_state() == GameState.MAIN_MENU
 
     async def connect(self, address: str | None = None) -> None:
-        # gates the GUI's Connect button too, since it calls ctx.connect() directly
-        # rather than going through the command processor's _cmd_connect.
+        # gates the GUI's Connect button and /connect, since both route through here.
         if not self.ready_to_connect():
-            logger.info("can't connect - not at the main menu.")
+            self.pending_server_address = address or self.server_address
+            logger.info("can't connect yet - will connect once the game reaches the main menu.")
             return
+        self.pending_server_address = None
         await super().connect(address)
 
     async def server_auth(self, password_requested: bool = False) -> None:
@@ -279,17 +285,31 @@ async def paused_task(ctx: MKSMContext):
     while not ctx.exit_event.is_set():
         try:
             if ctx.is_connected_to_game:
-                ctx.is_paused = ctx.game_interface.is_paused()
-            await asyncio.sleep(0.00001)
+                now_paused = ctx.game_interface.is_paused()
+                if now_paused != ctx.is_paused:
+                    ctx.is_paused = now_paused
+                    # Respond on the same iteration that saw the edge. Leaving it to
+                    # game_watcher costs a whole tick of blocking PINE work, by which
+                    # point the game has already built the pause menu from these values.
+                    if ctx.slot_data is not None and ctx.server is not None and ctx.slot is not None:
+                        on_pause_changed(ctx, now_paused)
+            # A bare yield, not a timed sleep: on Windows any nonzero delay rounds up to
+            # the ~15.6ms timer granularity, which is a whole PS2 frame. sleep(0) is
+            # special-cased to skip the timer entirely and reschedules in ~0.05ms.
+            await asyncio.sleep(0)
         except ConnectionError:
+            # Clear the flag here rather than waiting for pcsx2_sync_task to notice: that
+            # task can only run if we hand the loop back, and without both the clear and
+            # the sleep this handler spins forever on a dead socket, freezing the client.
             ctx.game_interface.disconnect_from_game()
-        except Exception as e:
-            if isinstance(e, RuntimeError):
-                logger.error(str(e))
-            else:
-                logger.error(traceback.format_exc())
+            update_connection_status(ctx, False)
+            await asyncio.sleep(EMULATOR_RECONNECT_DELAY)
+        except RuntimeError as e:
+            logger.error(str(e))
             await asyncio.sleep(3)
-            continue
+        except Exception:
+            logger.error(traceback.format_exc())
+            await asyncio.sleep(3)
 
 
 async def pcsx2_sync_task(ctx: MKSMContext):
@@ -305,24 +325,24 @@ async def pcsx2_sync_task(ctx: MKSMContext):
                 await _handle_game_not_ready(ctx)
         except ConnectionError:
             ctx.game_interface.disconnect_from_game()
-        except Exception as e:
-            if isinstance(e, RuntimeError):
-                logger.error(str(e))
-            else:
-                logger.error(traceback.format_exc())
+            update_connection_status(ctx, False)
+            await asyncio.sleep(EMULATOR_RECONNECT_DELAY)
+        except RuntimeError as e:
+            logger.error(str(e))
             await asyncio.sleep(3)
-            continue
+        except Exception:
+            logger.error(traceback.format_exc())
+            await asyncio.sleep(3)
 
 
 async def _handle_game_ready(ctx: MKSMContext) -> None:
     connected_to_server = (ctx.server is not None) and (ctx.slot is not None)
 
-    new_connection = ctx.is_connected_to_server != connected_to_server
+    if ctx.is_connected_to_server != connected_to_server:
+        ctx.is_connected_to_server = connected_to_server
+        ctx.last_time = asyncio.get_running_loop().time()
 
-    if new_connection:
-        loop = asyncio.get_running_loop()
-        ctx.last_time = loop.time()
-
+    await _try_pending_connect(ctx)
     await run_callbacks(ctx, connected_to_server)
 
     if ctx.server:
@@ -331,13 +351,28 @@ async def _handle_game_ready(ctx: MKSMContext) -> None:
             await asyncio.sleep(1)
             return
 
-        await asyncio.sleep(0.001)
+        await asyncio.sleep(TICK_INTERVAL)
     else:
         message = "Waiting for player to connect to server"
-        if ctx.last_error_message is not message:
-            logger.info("Waiting for player to connect to server")
+        if ctx.last_error_message != message:
+            logger.info(message)
             ctx.last_error_message = message
         await asyncio.sleep(1)
+
+
+async def _try_pending_connect(ctx: MKSMContext) -> None:
+    """server_loop() reads ctx.server_address directly and never goes through
+    MKSMContext.connect, so a CLI/URL address would skip the main-menu gate that the
+    GUI button and /connect both respect. launch_client holds the address here
+    instead, and we spend it once the game is actually ready."""
+    if ctx.pending_server_address is None or ctx.server is not None:
+        return
+    if not ctx.ready_to_connect():
+        return
+
+    address, ctx.pending_server_address = ctx.pending_server_address, None
+    logger.info(f"Game reached the main menu - connecting to {address}")
+    await ctx.connect(address)
 
 
 async def _handle_game_not_ready(ctx: MKSMContext):
@@ -351,12 +386,19 @@ def launch_client():
 
     async def main():
         multiprocessing.freeze_support()
-        logger.info("main")
         parser = get_base_parser()
-        args = parser.parse_args()
-        ctx = MKSMContext(args.connect, args.password)
+        # get_base_parser() defines neither of these, but handle_url_arg reads both.
+        parser.add_argument("--name", default=None, help="Slot Name to connect as.")
+        parser.add_argument("url", nargs="?", help="Archipelago connection url")
+        args = handle_url_arg(parser.parse_args(), parser)
 
-        logger.info("Connecting to server...")
+        # server_address stays None so server_loop doesn't connect behind the main-menu
+        # gate; _try_pending_connect spends the address once the game is ready.
+        ctx = MKSMContext(None, args.password)
+        ctx.pending_server_address = args.connect
+        if args.name:
+            ctx.auth = args.name
+
         ctx.server_task = asyncio.create_task(server_loop(ctx), name="Server Loop")
         ctx.tags.add("Client")
 
@@ -368,7 +410,6 @@ def launch_client():
         ctx.set_notify("CURRENT_EXP")
         ctx.set_notify("EXP_ITEMS_GIVEN")
 
-        logger.info("Running game...")
         ctx.pcsx2_sync_task = asyncio.create_task(pcsx2_sync_task(ctx), name="PCSX2 Sync")
         ctx.is_paused_task = asyncio.create_task(paused_task(ctx), name="Paused Sync")
 
@@ -377,13 +418,9 @@ def launch_client():
 
         await ctx.shutdown()
 
-        if ctx.pcsx2_sync_task:
-            await asyncio.sleep(3)
-            await ctx.pcsx2_sync_task
-
-        if ctx.is_paused_task:
-            await asyncio.sleep(3)
-            await ctx.is_paused_task
+        for task in (ctx.pcsx2_sync_task, ctx.is_paused_task):
+            if task:
+                await task
 
     import colorama
 

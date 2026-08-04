@@ -29,8 +29,22 @@ class GameState(Enum):
         return cls.UNKNOWN
 
 
+EVENT_RECORD_SIZE = 8
+EVENT_LOG_SIZE = 16000  # bytes the game reserves for EVENT_LOG_ARRAY
+
+
 def _make_event(room: int, event: int):
     return tuple([room, 0, 0, 0, event, 0, 0, 0])
+
+
+def chunk_events(data) -> list[tuple[int, ...]]:
+    """Split a flat event-log byte array into fixed-size event records."""
+    return [tuple(data[i:i + EVENT_RECORD_SIZE]) for i in range(0, len(data), EVENT_RECORD_SIZE)]
+
+
+def flatten_events(events) -> list[int]:
+    """Inverse of chunk_events."""
+    return [byte for event in events for byte in event]
 
 
 ADDRESSES = {
@@ -194,7 +208,8 @@ ADDRESSES = {
         "EXP_FMT": 0x5770d0,
 
         "CURRENT_AREA": 0xc29748,
-        # "IS_CURRENTLY_SAVING": 0x5e929f,
+
+        "MOVES_STRING": 0xc46b00,
     }
 }
 
@@ -222,7 +237,7 @@ EVENTS_TO_LOCATION_NAME = {
     _make_event(0xc3, 0x3a): "EM: Kitana Mileena and Jade defeated",
     _make_event(0xc3, 0x3e): "EM: Fist of Ruin obtained",
     _make_event(0x48, 0x06): "F: Kano defeated",
-    _make_event(0x49, 0x06): "F: Shao Kahn defeated", #TODO never triggered lol
+    _make_event(0x49, 0x06): "F: Shao Kahn defeated",  # TODO never triggered lol
 
 }
 
@@ -408,4 +423,4 @@ CHARACTER_BLOOD_BAR_AMOUNT = {
 }
 
 SAVING_ANIMATION = 0xF
-# TODO animatio x10 pause message timer (ability obtained animation)
+ABILITY_ANIMATION = 0x10

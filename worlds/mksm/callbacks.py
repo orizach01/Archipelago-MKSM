@@ -13,12 +13,14 @@ from typing import TYPE_CHECKING
 
 from NetUtils import ClientStatus
 from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
-    FOUNDRY_DOOR_EVENTS, FILLER_EXP
+    FOUNDRY_DOOR_EVENTS, FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 from .options import BossGoal
 
 FINAL_BOSS_LOCATION = "F: Shao Kahn defeated"
+
+MESSAGE_DISPLAY_SECONDS = 5.0
 
 MAIN_BOSS_LOCATIONS = [
     "EM: Kitana Mileena and Jade defeated",
@@ -72,7 +74,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         update_koin_counter(ctx)
         force_ui(ctx)
 
-        update_message(ctx, dt * 10000)
+        update_message(ctx, dt)
 
         await check_death(ctx)
         await check_move_upgrades(ctx)
@@ -109,16 +111,15 @@ def open_foundry_door_after_bosses(ctx: MKSMContext) -> None:
         return
 
     current_events = list(ctx.game_interface.get_event_block())
-    live_events = {tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)}
+    live_events = set(chunk_events(current_events))
 
-    foundry_door_events = [tuple(FOUNDRY_DOOR_EVENTS[i:i + 8]) for i in range(0, len(FOUNDRY_DOOR_EVENTS), 8)]
-    missing_events = [event for event in foundry_door_events if event not in live_events]
+    missing_events = [event for event in chunk_events(FOUNDRY_DOOR_EVENTS) if event not in live_events]
 
     if not missing_events:
         return
 
     # putting missing events at the start of the log array to not mess with the autosave system
-    new_array = [byte for event in missing_events for byte in event] + current_events
+    new_array = flatten_events(missing_events) + current_events
     ctx.game_interface.clear_event_log(bytes(new_array))
 
 
@@ -136,15 +137,15 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
     current_events = list(ctx.game_interface.get_event_block())
     current_area = ctx.game_interface.get_current_area()
 
-    events = [tuple(current_events[i:i + 8]) for i in range(0, len(current_events), 8)]
+    events = chunk_events(current_events)
     server_array = ctx.stored_data.get("EVENT_ARRAY") or []
 
     # removing current room's events from the end of the array while not currently saving the game
     if not ctx.game_interface.is_currently_saving():
-        while len(events) > len(server_array) // 8 and events[-1][0] == current_area:
+        while len(events) > len(server_array) // EVENT_RECORD_SIZE and events[-1][0] == current_area:
             events.pop()
 
-    filtered_array = [byte for event in events for byte in event]
+    filtered_array = flatten_events(events)
 
     if filtered_array == server_array or len(filtered_array) < len(server_array):
         return
@@ -193,6 +194,10 @@ def read_game_state(ctx) -> None:
     if current_state != ctx.game_state:
         ctx.prev_state = ctx.game_state
         ctx.game_state = current_state
+        # get_event_block trusts an unchanged TOTAL_EVENTS to mean unchanged contents,
+        # which holds while the game appends but not across a save load - and a load
+        # always passes through a non-gameplay state, so refresh on every transition.
+        ctx.game_interface.invalidate_event_cache()
 
 
 async def sync_red_koins(ctx: MKSMContext) -> None:
@@ -240,79 +245,62 @@ async def check_move_upgrades(ctx: MKSMContext) -> None:
         await ctx.check_locations(location_ids)
 
 
+# how many purchase tiers exist per move, i.e. range(2, stop) over the location names
+_UPGRADE_TIERS = {"square": ("Square", 5), "triangle": ("Triangle", 5),
+                  "circle": ("Circle", 6), "r2": ("R2", 6)}
+
+
+def _upgrades_from_checked(ctx: MKSMContext):
+    """What the pause menu should show: what the server says you have purchased."""
+    counts = {
+        key: sum(LOCATION_NAME_TO_ID[f"Purchase upgrade - {label} {i}"] in ctx.checked_locations
+                 for i in range(2, stop))
+        for key, (label, stop) in _UPGRADE_TIERS.items()
+    }
+    combos = [LOCATION_NAME_TO_ID[f"Purchase combo {i}"] in ctx.checked_locations for i in range(1, 6)]
+    return counts, combos
+
+
+def _upgrades_from_received(ctx: MKSMContext):
+    """Your actual loadout during gameplay: what the server has granted you."""
+    counts = {
+        key: min(sum(item.item == ITEM_NAME_TO_ID[f"{label} special upgrade"]
+                     for item in ctx.items_received), 5)
+        for key, (label, _) in _UPGRADE_TIERS.items()
+    }
+    combos = [any(item.item == ITEM_NAME_TO_ID[f"Combo {i}"] for item in ctx.items_received)
+              for i in range(1, 6)]
+    return counts, combos
+
+
+def _write_upgrades(ctx: MKSMContext, counts, combos) -> None:
+    ctx.game_interface.set_move_upgrades(**counts)
+    ctx.game_interface.set_combos(**{f"combo_{i}": value for i, value in enumerate(combos, 1)})
+
+
+def on_pause_changed(ctx: MKSMContext, is_paused: bool) -> None:
+    """Called straight from paused_task the moment the pause flag flips, rather than on
+    the next tick. The game builds the pause menu from these values within a frame or
+    two of setting the flag, and a tick is tens of milliseconds of blocking PINE work -
+    far too late. Everything in here must stay cheap for the same reason."""
+    if is_paused:
+        _write_upgrades(ctx, *_upgrades_from_checked(ctx))
+        ctx.set_upgrades_in_pause = True
+    else:
+        _write_upgrades(ctx, *_upgrades_from_received(ctx))
+        ctx.set_upgrades_in_pause = False
+
+
 def set_move_upgrades(ctx: MKSMContext) -> None:
+    """Safety net for on_pause_changed: if an edge was missed because the loop was
+    blocked inside a tick, this corrects it. Latched, so it is a no-op when the fast
+    path already ran."""
     if ctx.is_paused:
         if not ctx.set_upgrades_in_pause:
-            # set by checked
-            square = sum(
-                [
-                    LOCATION_NAME_TO_ID[f"Purchase upgrade - Square {i}"] in ctx.checked_locations
-                    for i in range(2, 5)
-                ]
-            )
-
-            triangle = sum(
-                [
-                    LOCATION_NAME_TO_ID[f"Purchase upgrade - Triangle {i}"] in ctx.checked_locations
-                    for i in range(2, 5)
-                ]
-            )
-
-            circle = sum(
-                [
-                    LOCATION_NAME_TO_ID[f"Purchase upgrade - Circle {i}"] in ctx.checked_locations
-                    for i in range(2, 6)
-                ]
-            )
-
-            r2 = sum(
-                [
-                    LOCATION_NAME_TO_ID[f"Purchase upgrade - R2 {i}"] in ctx.checked_locations
-                    for i in range(2, 6)
-                ]
-            )
-
-            combo_1 = LOCATION_NAME_TO_ID[f"Purchase combo 1"] in ctx.checked_locations
-            combo_2 = LOCATION_NAME_TO_ID[f"Purchase combo 2"] in ctx.checked_locations
-            combo_3 = LOCATION_NAME_TO_ID[f"Purchase combo 3"] in ctx.checked_locations
-            combo_4 = LOCATION_NAME_TO_ID[f"Purchase combo 4"] in ctx.checked_locations
-            combo_5 = LOCATION_NAME_TO_ID[f"Purchase combo 5"] in ctx.checked_locations
-
-            ctx.game_interface.set_move_upgrades(square=square, triangle=triangle, circle=circle, r2=r2)
-            ctx.game_interface.set_combos(combo_1=combo_1,
-                                          combo_2=combo_2,
-                                          combo_3=combo_3,
-                                          combo_4=combo_4,
-                                          combo_5=combo_5)
-
+            _write_upgrades(ctx, *_upgrades_from_checked(ctx))
             ctx.set_upgrades_in_pause = True
-
-
     else:
-        # set by received
-        square = sum([1 for item in ctx.items_received if item.item == ITEM_NAME_TO_ID["Square special upgrade"]])
-        triangle = sum([1 for item in ctx.items_received if item.item == ITEM_NAME_TO_ID["Triangle special upgrade"]])
-        circle = sum([1 for item in ctx.items_received if item.item == ITEM_NAME_TO_ID["Circle special upgrade"]])
-        r2 = sum([1 for item in ctx.items_received if item.item == ITEM_NAME_TO_ID["R2 special upgrade"]])
-
-        square = min(square, 5)
-        triangle = min(triangle, 5)
-        circle = min(circle, 5)
-        r2 = min(r2, 5)
-
-        combo_1 = len([item for item in ctx.items_received if item.item == ITEM_NAME_TO_ID["Combo 1"]]) > 0
-        combo_2 = len([item for item in ctx.items_received if item.item == ITEM_NAME_TO_ID["Combo 2"]]) > 0
-        combo_3 = len([item for item in ctx.items_received if item.item == ITEM_NAME_TO_ID["Combo 3"]]) > 0
-        combo_4 = len([item for item in ctx.items_received if item.item == ITEM_NAME_TO_ID["Combo 4"]]) > 0
-        combo_5 = len([item for item in ctx.items_received if item.item == ITEM_NAME_TO_ID["Combo 5"]]) > 0
-
-        ctx.game_interface.set_move_upgrades(square=square, triangle=triangle, circle=circle, r2=r2)
-        ctx.game_interface.set_combos(combo_1=combo_1,
-                                      combo_2=combo_2,
-                                      combo_3=combo_3,
-                                      combo_4=combo_4,
-                                      combo_5=combo_5)
-
+        _write_upgrades(ctx, *_upgrades_from_received(ctx))
         ctx.set_upgrades_in_pause = False
 
 
@@ -340,12 +328,11 @@ async def check_events(ctx: MKSMContext) -> None:
     if not ctx.game_state == GameState.GAMEPLAY:
         return
 
-    checked_events = set()
-    current_events = list(ctx.game_interface.get_event_block())
-    for i in range(0, len(current_events), 8):
-        event = tuple(current_events[i:i + 8])
-        if event in EVENTS_TO_LOCATION_NAME:
-            checked_events.add(EVENTS_TO_LOCATION_NAME[event])
+    checked_events = {
+        EVENTS_TO_LOCATION_NAME[event]
+        for event in chunk_events(ctx.game_interface.get_event_block())
+        if event in EVENTS_TO_LOCATION_NAME
+    }
 
     if not checked_events:
         return
@@ -478,7 +465,7 @@ def update_message(ctx: MKSMContext, dt: float) -> None:
     if ctx.current_message is not None:
         ctx.message_timer += dt
 
-        if ctx.message_timer < 5.0:
+        if ctx.message_timer < MESSAGE_DISPLAY_SECONDS:
             ctx.game_interface.set_message(ctx.current_message)
             return
 

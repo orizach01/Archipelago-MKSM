@@ -4,7 +4,7 @@ from typing import Optional, Dict
 
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
     NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII, \
-    ANIMATIONS_TO_LOCATION_NAME
+    ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE
 
 from .pcsx2_interface.pine import Pine
 
@@ -172,19 +172,60 @@ class MKSMInterface(GameInterface):
     def is_paused(self) -> bool:
         return bool(self._read8(self.addresses.get("PAUSE_FLAG")))
 
-    def clear_event_log(self, event_data: bytes) -> None:
-        # print(event_data)
+    # None means "we don't know what is in the array yet", which forces a full wipe.
+    _event_log_high_water: Optional[int] = None
+    _event_block_cache: Optional[bytes] = None
+    _event_block_count: Optional[int] = None  # TOTAL_EVENTS the cache was built from
 
-        # total_bytes = total_events * 8
-        # self._write_bytes(self.addresses.get("EVENT_LOG_ARRAY"), bytes([0] * total_bytes))
-        buffer = bytearray(16000)
-        buffer[0:len(event_data)] = event_data
-        self._write_bytes(self.addresses.get("EVENT_LOG_ARRAY"), buffer)
-        self._write32(self.addresses.get("TOTAL_EVENTS"), len(event_data) // 8)
+    def disconnect_from_game(self):
+        # a reconnect may be a different run entirely, so nothing we knew still holds
+        self._event_log_high_water = None
+        self.invalidate_event_cache()
+        super().disconnect_from_game()
+
+    def invalidate_event_cache(self) -> None:
+        """Force the next get_event_block to re-read the whole array. Needed whenever
+        the count alone can't be trusted to reflect a change - see get_event_block."""
+        self._event_block_cache = None
+        self._event_block_count = None
+
+    def clear_event_log(self, event_data: bytes) -> None:
+        event_log_addr = self.addresses.get("EVENT_LOG_ARRAY")
+        total_events_addr = self.addresses.get("TOTAL_EVENTS")
+
+        # Only zero as far as the array is actually dirty - whatever the game currently
+        # claims plus whatever we last wrote ourselves - instead of blanking all 16000
+        # bytes. PINE writes 8 bytes per round-trip, so the flat wipe cost 2000 round
+        # trips on every non-gameplay tick regardless of how large the save really was.
+        if self._event_log_high_water is None:
+            dirty = EVENT_LOG_SIZE  # unknown prior contents, so clear everything once
+        else:
+            live_bytes = self._read32(total_events_addr) * EVENT_RECORD_SIZE
+            dirty = max(live_bytes, self._event_log_high_water)
+            if not 0 <= dirty <= EVENT_LOG_SIZE:
+                dirty = EVENT_LOG_SIZE  # garbage count - fall back to a full wipe
+
+        padding = max(0, dirty - len(event_data))
+        self._write_bytes(event_log_addr, bytes(event_data) + bytes(padding))
+        self._write32(total_events_addr, len(event_data) // EVENT_RECORD_SIZE)
+
+        # everything past the data we just wrote is now zeroed
+        self._event_log_high_water = len(event_data)
+        self.invalidate_event_cache()
 
     def get_event_block(self) -> bytes:
         total_events = self._read32(self.addresses.get("TOTAL_EVENTS"))
-        total_bytes = total_events * 8
+
+        # The game only ever appends to the log, so an unchanged count means unchanged
+        # contents. Re-reading the array costs one round-trip per 8 bytes (~600 on a
+        # near-complete save) and blocks the event loop for the whole time - that block
+        # is exactly the window paused_task cannot poll through, so it has to be rare.
+        # "Same count means same contents" does not survive a save load, which is why
+        # read_game_state invalidates on every game-state transition.
+        if self._event_block_cache is not None and self._event_block_count == total_events:
+            return self._event_block_cache
+
+        total_bytes = total_events * EVENT_RECORD_SIZE
         raw = self._read_bytes(self.addresses.get("EVENT_LOG_ARRAY"), total_bytes)
 
         # TOTAL_EVENTS occasionally reads back garbage/oversized (e.g. a boot/reset race) -
@@ -193,9 +234,12 @@ class MKSMInterface(GameInterface):
         # Trim them here so every caller of get_event_block gets a sane buffer, instead of
         # treating that padding as real event-log growth and pushing it to the server.
         trimmed = len(raw)
-        while trimmed >= 8 and raw[trimmed - 8:trimmed] == b"\x00" * 8:
-            trimmed -= 8
-        return raw[:trimmed]
+        while trimmed >= EVENT_RECORD_SIZE and raw[trimmed - EVENT_RECORD_SIZE:trimmed] == b"\x00" * EVENT_RECORD_SIZE:
+            trimmed -= EVENT_RECORD_SIZE
+
+        self._event_block_cache = raw[:trimmed]
+        self._event_block_count = total_events
+        return self._event_block_cache
 
     def get_upgrade_amounts(self) -> CharacterPurchaseAmounts:
         square = self._read8(self.addresses.get("SQUARE_UPGRADE"))
@@ -372,4 +416,20 @@ class MKSMInterface(GameInterface):
 
     def is_during_finishing_move(self) -> bool:
         # TODO check for other cutscenes maybe?
-        return self.get_current_animation() in ANIMATIONS_TO_LOCATION_NAME.keys()
+        return (self.get_current_animation() in ANIMATIONS_TO_LOCATION_NAME.keys() or
+                self.get_current_animation() == ABILITY_ANIMATION)
+
+    def set_moves_string(self, is_synced: bool):
+        moves_str_addr = self.addresses.get("MOVES_STRING")
+
+        if is_synced:
+            message = "Moves"
+        else:
+            message = "NOT SYNCED"
+
+        message = message.encode("ASCII", errors="ignore")
+        message = message[:127]
+
+        str_arr = bytearray(127)
+        str_arr[0:len(message)] = message
+        self._write_bytes(moves_str_addr, bytes(str_arr))

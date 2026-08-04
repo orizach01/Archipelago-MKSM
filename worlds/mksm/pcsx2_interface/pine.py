@@ -21,6 +21,7 @@ import os
 import struct
 from enum import IntEnum
 from platform import system
+from typing import NoReturn
 import socket
 
 
@@ -101,6 +102,7 @@ class Pine:
     def disconnect(self) -> None:
         if self._sock_state:
             self._sock.close()
+            self._sock_state = False
 
     def is_connected(self) -> bool:
         return self._sock_state
@@ -197,40 +199,55 @@ class Pine:
     def _send_request(self, request: bytes) -> bytes:
         if not self._sock_state:
             self._init_socket()
+            if not self._sock_state:
+                raise ConnectionError("Could not connect to PCSX2.")
 
         try:
             self._sock.sendall(request)
         except socket.error:
-            self._sock.close()
-            self._sock_state = False
-            raise ConnectionError("Lost connection to PCSX2.")
+            self._drop("Lost connection to PCSX2.")
 
-        end_length = 4
-        result: bytes = b''
-        while len(result) < end_length:
-            try:
-                response = self._sock.recv(4096)
-            except TimeoutError:
-                raise TimeoutError("Response timed out.")
+        # A reply is a 4-byte little-endian total length followed by the rest of that
+        # many bytes. Read exactly that much and no more: requests and replies are
+        # matched by position on a shared socket, so a single byte left unread shifts
+        # every later reply onto the wrong request - silently, and permanently.
+        header = self._recv_exactly(4)
+        total_length = Pine.from_bytes(header)
+        if not 5 <= total_length <= Pine.MAX_IPC_SIZE:
+            self._drop(f"Invalid response size from PCSX2 ({total_length}).")
 
-            if len(response) <= 0:
-                result = b''
-                break
+        result = header + self._recv_exactly(total_length - 4)
 
-            result += response
-
-            if end_length == 4 and len(response) >= 4:
-                end_length = Pine.from_bytes(result[0:4])
-                if end_length > Pine.MAX_IPC_SIZE:
-                    result = b''
-                    break
-
-        if len(result) == 0:
-            raise ConnectionError("Invalid response from PCSX2.")
         if result[4] == Pine.IPCResult.IPC_FAIL:
+            # the reply was read in full, so the stream is still aligned here
             raise ConnectionError("Failure indicated in PCSX2 response.")
 
         return result
+
+    def _recv_exactly(self, count: int) -> bytes:
+        """Read exactly count bytes off the socket, or drop the connection trying."""
+        buffer = b''
+        while len(buffer) < count:
+            try:
+                chunk = self._sock.recv(count - len(buffer))
+            except TimeoutError:
+                self._drop("Response from PCSX2 timed out.")
+            except socket.error:
+                self._drop("Lost connection to PCSX2.")
+            if not chunk:
+                self._drop("PCSX2 closed the connection.")
+            buffer += chunk
+        return buffer
+
+    def _drop(self, message: str) -> NoReturn:
+        """Close the socket and raise. Any failure part-way through a reply leaves the
+        stream at an unknown offset, and there is no way to work out how much of the
+        reply is still in flight - so reconnecting is the only safe recovery."""
+        try:
+            self._sock.close()
+        finally:
+            self._sock_state = False
+        raise ConnectionError(message)
 
     @staticmethod
     def _create_request(command: IPCCommand, address: int, size: int = 0) -> bytes:
