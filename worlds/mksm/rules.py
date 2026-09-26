@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from rule_builder.rules import Has, Rule, HasFromListUnique
+from .consts import TOURNAMENT_VICTORY_AMOUNT
 from .locations import FINISHING_MOVES_LOCATIONS
 from .options import BossGoal
 
@@ -30,7 +31,7 @@ MILEENA = Has("Mileena defeated item")
 KANO = Has("Kano defeated item")
 SHAO_KAHN = Has("Shao Kahn defeated item")
 
-DEAD_POOL = Has("Dead Pool item")
+FOUNDRY_RULE = Has("Tournament victory", count=TOURNAMENT_VICTORY_AMOUNT) & WALL_CLIMB & WALL_RUN & DOUBLE_JUMP
 
 
 def set_all_rules(world: MKSMWorld) -> None:
@@ -185,7 +186,7 @@ def connect_regions(world: MKSMWorld) -> None:
 
     portal_2.connect(
         foundry,
-        rule=KITANA & REPTILE & BARAKA & GORO & SCORPION
+        rule=FOUNDRY_RULE,
     )
 
 
@@ -213,8 +214,11 @@ def set_completion_condition(world: MKSMWorld) -> None:
 
     goal_rule = enough_red_koins
 
+    if world.options.boss_goal >= BossGoal.option_shao_kahn_only:
+        goal_rule = goal_rule & SHAO_KAHN
+
     if world.options.boss_goal >= BossGoal.option_main_bosses:
-        goal_rule = goal_rule & KITANA & REPTILE & BARAKA & GORO & SCORPION & SHAO_KAHN
+        goal_rule = goal_rule & KITANA & REPTILE & BARAKA & GORO & SCORPION
 
     if world.options.boss_goal >= BossGoal.option_main_and_secret_bosses:
         goal_rule = goal_rule & ERMAC & MILEENA & KANO

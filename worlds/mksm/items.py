@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from BaseClasses import Item, ItemClassification
-from .consts import CHARACTER_PURCHASE_AMOUNTS, HEALTH_UPGRADE_AMOUNT, CHARACTER_BLOOD_BAR_AMOUNT, FILLER_EXP
+from .consts import CHARACTER_PURCHASE_AMOUNTS, HEALTH_UPGRADE_AMOUNT, CHARACTER_BLOOD_BAR_AMOUNT, FILLER_EXP, \
+    TOURNAMENT_VICTORY_AMOUNT
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -29,6 +30,7 @@ ITEM_NAME_TO_ID = {
     "Health upgrade": 18,
     "Blood bar": 19,
     f"{FILLER_EXP} EXP": 20,
+    "Tournament victory": 21,
 }
 
 DEFAULT_ITEM_CLASSIFICATIONS = {
@@ -39,18 +41,19 @@ DEFAULT_ITEM_CLASSIFICATIONS = {
     "Wall Jump": ItemClassification.progression,
     "Swing": ItemClassification.progression,
     "Double Jump": ItemClassification.progression,
+    "Blood bar": ItemClassification.progression,
+    "Tournament victory": ItemClassification.progression,
     "Red Koin": ItemClassification.progression_deprioritized_skip_balancing,
-    "Blood bar": ItemClassification.progression_deprioritized_skip_balancing,
-    "Combo 1": ItemClassification.filler,
-    "Combo 2": ItemClassification.filler,
-    "Combo 3": ItemClassification.filler,
-    "Combo 4": ItemClassification.filler,
-    "Combo 5": ItemClassification.filler,
-    "Square special upgrade": ItemClassification.filler,
-    "Triangle special upgrade": ItemClassification.filler,
-    "Circle special upgrade": ItemClassification.filler,
-    "R2 special upgrade": ItemClassification.filler,
-    "Health upgrade": ItemClassification.filler,
+    "Combo 1": ItemClassification.useful,
+    "Combo 2": ItemClassification.useful,
+    "Combo 3": ItemClassification.useful,
+    "Combo 4": ItemClassification.useful,
+    "Combo 5": ItemClassification.useful,
+    "Square special upgrade": ItemClassification.useful,
+    "Triangle special upgrade": ItemClassification.useful,
+    "Circle special upgrade": ItemClassification.useful,
+    "R2 special upgrade": ItemClassification.useful,
+    "Health upgrade": ItemClassification.useful,
     f"{FILLER_EXP} EXP": ItemClassification.filler,
 }
 
@@ -87,6 +90,7 @@ def create_all_items(world: MKSMWorld) -> None:
     itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2)]
 
     itempool += [world.create_item("Health upgrade") for _ in range(HEALTH_UPGRADE_AMOUNT)]
+    itempool += [world.create_item("Tournament victory") for _ in range(TOURNAMENT_VICTORY_AMOUNT)]
 
     blood_bar_amount = CHARACTER_BLOOD_BAR_AMOUNT[character.value]
     itempool += [world.create_item("Blood bar") for _ in range(blood_bar_amount)]

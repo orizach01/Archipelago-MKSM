@@ -291,6 +291,20 @@ DEFAULT_EVENT_ARRAY = [
 # we want to inject the events once we detect the player beat every main boss.
 # because the events for beating bosses might not save correctly in the event array due to quitting the game,
 # the foundry door to not open properly
+TOURNAMENT_VICTORIES_NEEDED = 5
+
+# The event we inject to open the foundry door once the player has enough Tournament
+# victories. The five medallion events in FOUNDRY_DOOR_EVENTS are visual only.
+FOUNDRY_DOOR_OPEN_EVENT = _make_event(0xc1, 0x3e)
+
+# The game adds these itself once the player picks up five real in-game medallions, so
+# they have to be stripped until the AP items say otherwise. 0x33 opens the door too,
+# so suppressing only the event we inject would leave the natural path wide open.
+FOUNDRY_DOOR_OPENING_EVENTS = {
+    FOUNDRY_DOOR_OPEN_EVENT,
+    _make_event(0xc1, 0x33),
+}
+
 FOUNDRY_DOOR_EVENTS = [
     *_make_event(0xc1, 0x4a),
     *_make_event(0xc1, 0x4c),
@@ -391,7 +405,7 @@ BUTTONS_ASCII = {
     "R2": 0x5e,
 }
 
-FILLER_EXP = 2000
+FILLER_EXP = 1000
 
 CHARACTER_PURCHASE_AMOUNTS: dict[int, CharacterPurchaseAmounts] = {
     Character.option_liu_kang: CharacterPurchaseAmounts(combo=5, square=3, triangle=3, circle=2, r2=4),
@@ -422,3 +436,5 @@ CHARACTER_BLOOD_BAR_AMOUNT = {
 
 SAVING_ANIMATION = 0xF
 ABILITY_ANIMATION = 0x10
+
+TOURNAMENT_VICTORY_AMOUNT = 5

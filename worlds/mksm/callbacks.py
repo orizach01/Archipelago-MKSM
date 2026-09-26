@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING
 
 from NetUtils import ClientStatus
 from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
-    FOUNDRY_DOOR_EVENTS, FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events
+    FOUNDRY_DOOR_OPEN_EVENT, FOUNDRY_DOOR_OPENING_EVENTS, TOURNAMENT_VICTORIES_NEEDED, \
+    FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 from .options import BossGoal
@@ -43,17 +44,17 @@ if TYPE_CHECKING:
 async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
+    # TODO check other shooting koins for all characters
     # TODO grant fake fist of ruin for soul tomb room? area 0x04
     # TODO grant fake fist of ruin for sub zero boss room? area 0x2c
     # TODO grant fake climb for reptile room? area 0x90
     # TODO check portal start area open world style -> update: address in code notes for pause menu area
     # TODO open co op doors from start
-    # TODO! change purchase location tiers to be by price, and revert combos to be separate
     # TODO smoke missions
     # TODO mileena boss is bugged, check which events are needed to not bug her -> update: need to restart game to fix
-    # TODO add foundry door unlock as an item!! ( 5 medalions!!!)
-    # TODO add a sign in pause menu that its in sync and can purchase safely
     # TODO nice error message when exiting pcsx2/disconnecting from server
+    # TODO foundry door still opens with beating all bosses in intended order, need to maybe remove some boss events
+    #      after beating them to not trigger door opening cutscene
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
@@ -63,7 +64,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
 
         read_game_state(ctx)
         clear_events(ctx)
-        open_foundry_door_after_bosses(ctx)
+        sync_foundry_door(ctx)
         clear_exp(ctx)
 
         set_character(ctx)
@@ -98,28 +99,46 @@ def clear_events(ctx: MKSMContext):
     else:
         server_array = list(ctx.stored_data["EVENT_ARRAY"])
 
+    # if a door-opening event ever leaked into EVENT_ARRAY, don't write it back into the game
+    strip = foundry_events_to_strip(ctx)
+    if strip:
+        server_array = flatten_events(e for e in chunk_events(server_array) if e not in strip)
+
     ctx.game_interface.clear_event_log(bytes(server_array))
 
 
-def open_foundry_door_after_bosses(ctx: MKSMContext) -> None:
+def foundry_events_to_strip(ctx: MKSMContext) -> set:
+    """The door-opening events the player has not earned yet, or an empty set once they
+    have. The game adds these itself when the fifth real medallion is picked up, so they
+    have to be filtered out of game memory, out of what we push to the server, and out of
+    what we push back into the game - a single leak into EVENT_ARRAY would otherwise
+    reopen the door permanently, since clear_events replays the server array forever."""
+    victories = sum(item.item == ITEM_NAME_TO_ID["Tournament victory"]
+                    for item in ctx.items_received)
+    return set() if victories >= TOURNAMENT_VICTORIES_NEEDED else FOUNDRY_DOOR_OPENING_EVENTS
+
+
+def sync_foundry_door(ctx: MKSMContext) -> None:
+    """Open the foundry door on Tournament victories rather than on real medallions:
+    inject the open event once they are earned, strip the game's own once they are not."""
     if ctx.game_state != GameState.GAMEPLAY:
         return
 
-    bosses_defeated = all(LOCATION_NAME_TO_ID[name] in ctx.checked_locations for name in MAIN_BOSS_LOCATIONS)
-
-    if not bosses_defeated:
-        return
-
     current_events = list(ctx.game_interface.get_event_block())
-    live_events = set(chunk_events(current_events))
+    events = chunk_events(current_events)
+    strip = foundry_events_to_strip(ctx)
 
-    missing_events = [event for event in chunk_events(FOUNDRY_DOOR_EVENTS) if event not in live_events]
+    if not strip:
+        if FOUNDRY_DOOR_OPEN_EVENT in events:
+            return
+        # putting the event at the start of the log array to not mess with the autosave system
+        new_array = flatten_events([FOUNDRY_DOOR_OPEN_EVENT]) + current_events
+    else:
+        kept = [event for event in events if event not in strip]
+        if len(kept) == len(events):
+            return  # the usual path: nothing to strip, so no 2000-round-trip write
+        new_array = flatten_events(kept)
 
-    if not missing_events:
-        return
-
-    # putting missing events at the start of the log array to not mess with the autosave system
-    new_array = flatten_events(missing_events) + current_events
     ctx.game_interface.clear_event_log(bytes(new_array))
 
 
@@ -137,7 +156,10 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
     current_events = list(ctx.game_interface.get_event_block())
     current_area = ctx.game_interface.get_current_area()
 
-    events = chunk_events(current_events)
+    # never push an unearned door-opening event: EVENT_ARRAY is replayed into the game on
+    # every non-gameplay tick, so one leak would reopen the door for good
+    strip = foundry_events_to_strip(ctx)
+    events = [event for event in chunk_events(current_events) if event not in strip]
     server_array = ctx.stored_data.get("EVENT_ARRAY") or []
 
     # removing current room's events from the end of the array while not currently saving the game
