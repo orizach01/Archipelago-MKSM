@@ -408,6 +408,12 @@ class MKSMInterface(GameInterface):
 
         self._write32(inst_addr, 0)
 
+    def set_foundry_door_flag(self, value: int) -> None:
+        self._write8(self.addresses.get("FOUNDRY_DOOR_FLAG"), value)
+
+    def get_foundry_door_flag(self) -> int:
+        return self._read8(self.addresses.get("FOUNDRY_DOOR_FLAG"))
+
     def get_current_area(self):
         area_addr = self.addresses.get("CURRENT_AREA")
 

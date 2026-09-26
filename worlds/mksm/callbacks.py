@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from NetUtils import ClientStatus
 from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
-    FOUNDRY_DOOR_OPEN_EVENT, FOUNDRY_DOOR_OPENING_EVENTS, TOURNAMENT_VICTORIES_NEEDED, \
+    FOUNDRY_DOOR_OPEN_EVENT, TOURNAMENT_VICTORY_AMOUNT, \
     FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
@@ -99,46 +99,40 @@ def clear_events(ctx: MKSMContext):
     else:
         server_array = list(ctx.stored_data["EVENT_ARRAY"])
 
-    # if a door-opening event ever leaked into EVENT_ARRAY, don't write it back into the game
-    strip = foundry_events_to_strip(ctx)
-    if strip:
-        server_array = flatten_events(e for e in chunk_events(server_array) if e not in strip)
-
     ctx.game_interface.clear_event_log(bytes(server_array))
 
 
-def foundry_events_to_strip(ctx: MKSMContext) -> set:
-    """The door-opening events the player has not earned yet, or an empty set once they
-    have. The game adds these itself when the fifth real medallion is picked up, so they
-    have to be filtered out of game memory, out of what we push to the server, and out of
-    what we push back into the game - a single leak into EVENT_ARRAY would otherwise
-    reopen the door permanently, since clear_events replays the server array forever."""
+def sync_foundry_door(ctx: MKSMContext) -> None:
+    """Gate the foundry door on Tournament victories instead of real medallions.
+
+    Below the threshold we hold FOUNDRY_DOOR_FLAG down, which keeps the game's medallion
+    count under five so the portal cutscene never fires. At or above it we inject the
+    door-opening event.
+
+    Note the asymmetry: we suppress with a memory write but open with an event. Stripping
+    the door events does not work in the other direction, because 0x3e doubles as the
+    cutscene's "already played" marker - deleting it made the cutscene replay on every
+    portal transit, reopening the door each time, and removing the record can't close a
+    door the cutscene has already opened in the world."""
     victories = sum(item.item == ITEM_NAME_TO_ID["Tournament victory"]
                     for item in ctx.items_received)
-    return set() if victories >= TOURNAMENT_VICTORIES_NEEDED else FOUNDRY_DOOR_OPENING_EVENTS
 
+    if victories < TOURNAMENT_VICTORY_AMOUNT:
+        # Held down in every game state, not just gameplay: the cutscene condition is
+        # evaluated on an area transition, and a tick boundary shouldn't get to decide
+        # whether the door opens.
+        ctx.game_interface.set_foundry_door_flag(0)
+        return
 
-def sync_foundry_door(ctx: MKSMContext) -> None:
-    """Open the foundry door on Tournament victories rather than on real medallions:
-    inject the open event once they are earned, strip the game's own once they are not."""
     if ctx.game_state != GameState.GAMEPLAY:
         return
 
     current_events = list(ctx.game_interface.get_event_block())
-    events = chunk_events(current_events)
-    strip = foundry_events_to_strip(ctx)
+    if FOUNDRY_DOOR_OPEN_EVENT in chunk_events(current_events):
+        return
 
-    if not strip:
-        if FOUNDRY_DOOR_OPEN_EVENT in events:
-            return
-        # putting the event at the start of the log array to not mess with the autosave system
-        new_array = flatten_events([FOUNDRY_DOOR_OPEN_EVENT]) + current_events
-    else:
-        kept = [event for event in events if event not in strip]
-        if len(kept) == len(events):
-            return  # the usual path: nothing to strip, so no 2000-round-trip write
-        new_array = flatten_events(kept)
-
+    # putting the event at the start of the log array to not mess with the autosave system
+    new_array = flatten_events([FOUNDRY_DOOR_OPEN_EVENT]) + current_events
     ctx.game_interface.clear_event_log(bytes(new_array))
 
 
@@ -156,10 +150,7 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
     current_events = list(ctx.game_interface.get_event_block())
     current_area = ctx.game_interface.get_current_area()
 
-    # never push an unearned door-opening event: EVENT_ARRAY is replayed into the game on
-    # every non-gameplay tick, so one leak would reopen the door for good
-    strip = foundry_events_to_strip(ctx)
-    events = [event for event in chunk_events(current_events) if event not in strip]
+    events = chunk_events(current_events)
     server_array = ctx.stored_data.get("EVENT_ARRAY") or []
 
     # removing current room's events from the end of the array while not currently saving the game

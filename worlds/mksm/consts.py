@@ -208,6 +208,14 @@ ADDRESSES = {
         "EXP_FMT": 0x5770d0,
 
         "CURRENT_AREA": 0xc29748,
+
+        # A single boolean in a table of them, just past the event log, flipped 0 -> 1 when
+        # Scorpion's medallion was picked up. Holding it at 0 keeps the game's medallion
+        # count below five, so the portal cutscene that opens the foundry door never fires.
+        # This is the only lever that works: the count is not in the event log (wiping it
+        # changes nothing) and not in the ability flags, and the door-opening events can't
+        # be stripped because 0x3e doubles as the cutscene's "already played" marker.
+        "FOUNDRY_DOOR_FLAG": 0xc2e04c,
     }
 }
 
@@ -287,23 +295,14 @@ DEFAULT_EVENT_ARRAY = [
 
 ]
 
-# these events open the door to the foundry.
-# we want to inject the events once we detect the player beat every main boss.
-# because the events for beating bosses might not save correctly in the event array due to quitting the game,
-# the foundry door to not open properly
-TOURNAMENT_VICTORIES_NEEDED = 5
-
 # The event we inject to open the foundry door once the player has enough Tournament
 # victories. The five medallion events in FOUNDRY_DOOR_EVENTS are visual only.
+#
+# (0xc1, 0x33) opens the door as well, but nothing needs it: we only ever add events here,
+# never remove them. Stripping these does not gate the door anyway - 0x3e doubles as the
+# portal cutscene's "already played" marker, so deleting it makes the cutscene replay on
+# every transit and reopen the door each time. The gate is FOUNDRY_DOOR_FLAG instead.
 FOUNDRY_DOOR_OPEN_EVENT = _make_event(0xc1, 0x3e)
-
-# The game adds these itself once the player picks up five real in-game medallions, so
-# they have to be stripped until the AP items say otherwise. 0x33 opens the door too,
-# so suppressing only the event we inject would leave the natural path wide open.
-FOUNDRY_DOOR_OPENING_EVENTS = {
-    FOUNDRY_DOOR_OPEN_EVENT,
-    _make_event(0xc1, 0x33),
-}
 
 FOUNDRY_DOOR_EVENTS = [
     *_make_event(0xc1, 0x4a),
@@ -437,4 +436,9 @@ CHARACTER_BLOOD_BAR_AMOUNT = {
 SAVING_ANIMATION = 0xF
 ABILITY_ANIMATION = 0x10
 
+# How many Tournament victory items exist, and so how many are needed to open the foundry
+# door. One constant on purpose: items.py builds the pool from it, rules.py gates the
+# Foundry region on having them all, and callbacks.py holds FOUNDRY_DOOR_FLAG down until
+# the player has this many. If the logic's threshold and the client's ever diverged,
+# generation would place items behind a door the client refuses to open.
 TOURNAMENT_VICTORY_AMOUNT = 5
