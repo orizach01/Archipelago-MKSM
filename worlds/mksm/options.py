@@ -63,12 +63,19 @@ class BossGoal(Choice):
     """
     What bosses are needed for goal completion.
     The goal also includes getting enough Red Koins, set in the red_koin_need_percent option.
+    no_bosses: no bosses at all are needed - the goal is Red Koins only.
     shao_kahn_only (default): only the final boss of the game is needed for the goal.
     main_bosses: all main bosses (Kitana, Reptile, Baraka, Goro and Scorpion) and the final boss.
     main_and_secret_bosses: all previously mentioned bosses and all secret bosses (Ermac, Mileena and Kano).
+    Setting this to no_bosses requires red_koin_need_percent to be above 0, since otherwise
+    there would be nothing left to complete.
     """
     display_name = "Boss Goal"
 
+    # -1 rather than shifting everything up by one, so the ordering still reads as "how
+    # much boss content", and every `>=` comparison in rules.py and callbacks.py keeps
+    # working unchanged - no_bosses simply falls below all of them.
+    option_no_bosses = -1
     option_shao_kahn_only = 0
     option_main_bosses = 1
     option_main_and_secret_bosses = 2

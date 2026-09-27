@@ -49,6 +49,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO smoke missions
     # TODO mileena boss is bugged, check which events are needed to not bug her -> update: need to restart game to fix
     # TODO add shopsanity option?
+    # TODO red koin goal only, add -1 boss option idk
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
@@ -426,8 +427,9 @@ async def check_completed_game(ctx: MKSMContext):
     if boss_goal >= BossGoal.option_main_and_secret_bosses:
         required_boss_locations += SECRET_BOSS_LOCATIONS
 
-    assert len(required_boss_locations) > 0, "no boss goal error"
-
+    # no_bosses leaves this empty on purpose, and all() of nothing is True - the goal is
+    # then Red Koins alone. generate_early rejects the combination where both halves are
+    # switched off, so an empty list here can never mean "no goal at all".
     bosses_defeated = all(LOCATION_NAME_TO_ID[name] in ctx.checked_locations for name in required_boss_locations)
 
     if current >= needed and bosses_defeated:

@@ -2,6 +2,7 @@ from collections.abc import Mapping
 from typing import Any
 
 # Imports of base Archipelago modules must be absolute.
+from Options import OptionError
 from worlds.AutoWorld import World
 
 # Imports of your world's files must be relative.
@@ -29,6 +30,20 @@ class MKSMWorld(World):
     topology_present = True
 
     origin_region_name = "Menu"
+
+    def generate_early(self) -> None:
+        # Both halves of the goal can be switched off independently - boss_goal can be
+        # no_bosses and red_koin_need_percent can be 0 - and with both off the seed would
+        # be complete the moment it starts. Catch it here so the player finds out now
+        # rather than after generating.
+        no_bosses = self.options.boss_goal == mksm_options.BossGoal.option_no_bosses
+        no_koins = self.options.red_koin_need_percent == 0
+        if no_bosses and no_koins:
+            raise OptionError(
+                f"{self.player_name}: boss_goal is set to no_bosses and "
+                f"red_koin_need_percent is 0, which leaves no goal to complete. "
+                f"Raise red_koin_need_percent above 0, or pick a boss_goal."
+            )
 
     def create_regions(self) -> None:
         regions.create_all_regions(self)
