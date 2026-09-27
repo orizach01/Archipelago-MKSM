@@ -48,9 +48,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO open co op doors from start
     # TODO smoke missions
     # TODO mileena boss is bugged, check which events are needed to not bug her -> update: need to restart game to fix
-    # TODO nice error message when exiting pcsx2/disconnecting from server
     # TODO add shopsanity option?
-    # TODO tournament victory tracker in menu
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
@@ -69,6 +67,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         set_health_upgrades(ctx)
         set_blood_bar(ctx)
         update_koin_counter(ctx)
+        update_tournament_victories_counter(ctx)
         force_ui(ctx)
 
         update_message(ctx, dt)
@@ -397,6 +396,15 @@ def update_koin_counter(ctx):
     total = min(total, 99)
 
     ctx.game_interface.set_koin_string(current, needed, total)
+
+
+def update_tournament_victories_counter(ctx: MKSMContext):
+    if not ctx.slot_data or "red_koin_amount" not in ctx.slot_data or "red_koin_need_percent" not in ctx.slot_data:
+        return  # haven't heard back from the server yet - don't guess
+
+    current = sum(item.item == ITEM_NAME_TO_ID["Tournament victory"] for item in ctx.items_received)
+
+    ctx.game_interface.set_tournament_string(current)
 
 
 async def check_completed_game(ctx: MKSMContext):

@@ -197,7 +197,9 @@ ADDRESSES = {
         "CURRENT_ANIMATION": 0x5e6b64,
 
         "KOIN_FORMAT_STRING": 0x5777b8,
+        "TIME_FORMAT_STRING": 0x5777c0,  # 14 spaces then NULL
         "RED_KOIN_STRING": 0xc47d00,
+        "GAME_TIME_STRING": 0xc47b80,
 
         "CURRENT_CHARACTER": 0xc2974c,
 

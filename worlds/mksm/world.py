@@ -50,7 +50,7 @@ class MKSMWorld(World):
 
     def fill_slot_data(self) -> Mapping[str, Any]:
         return {
-            "character": self.options.character,
+            "character": self.options.character.value,
             "red_koin_amount": self.red_koin_amount,
             "red_koin_need_percent": self.options.red_koin_need_percent.value,
             "boss_goal": self.options.boss_goal.value,

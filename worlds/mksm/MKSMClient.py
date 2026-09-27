@@ -28,6 +28,7 @@ from .callbacks import game_watcher as run_callbacks, on_pause_changed
 EMULATOR_RECONNECT_DELAY = 5  # seconds between PCSX2 connection attempts
 TICK_INTERVAL = 0.01  # seconds between full game_watcher passes
 MAX_QUEUED_MESSAGES = 20  # cap on the in-game ticker backlog
+WAITING_FOR_SERVER = "Waiting for player to connect to server"
 
 
 class MKSMCommandProcessor(ClientCommandProcessor):
@@ -223,6 +224,21 @@ class MKSMContext(CommonContext):
         self.pending_server_address = None
         await super().connect(address)
 
+    async def connection_closed(self) -> None:
+        """Suppress AP's autoreconnect so every reconnection goes through the gate above.
+
+        server_autoreconnect calls server_loop directly, bypassing connect() entirely, so
+        it can reconnect mid-gameplay. That matters because clear_events only runs outside
+        gameplay: an autoreconnect mid-run would let events the player gained while
+        disconnected be pushed to the server, instead of the server's array replacing them.
+        Requiring a manual reconnect means the player is always at the main menu when it
+        happens, and the server's state wins.
+
+        server_loop sets this flag back to False on the next successful connect, and the
+        autoreconnect gate is the only thing that reads it."""
+        self.disconnected_intentionally = True
+        await super().connection_closed()
+
     async def server_auth(self, password_requested: bool = False) -> None:
         if password_requested and not self.password:
             await super().server_auth(password_requested)
@@ -279,7 +295,12 @@ def update_connection_status(ctx: MKSMContext, status: bool):
     if status:
         logger.info("Connected to MKSM")
     else:
-        logger.info("Unable to connect to the PCSX2 instance, attempting to reconnect...")
+        # Only ever reached on a real drop: the flag starts False, so a transition to False
+        # means we were connected a moment ago. The old "unable to connect" wording read
+        # like a failed startup attempt instead of the emulator going away mid-session.
+        logger.warning(f"Lost connection to PCSX2 - did the emulator close, or the game "
+                       f"stop running? Retrying every {EMULATOR_RECONNECT_DELAY}s, no "
+                       f"need to restart the client.")
 
     ctx.is_connected_to_game = status
 
@@ -342,8 +363,19 @@ async def _handle_game_ready(ctx: MKSMContext) -> None:
     connected_to_server = (ctx.server is not None) and (ctx.slot is not None)
 
     if ctx.is_connected_to_server != connected_to_server:
+        was_connected = ctx.is_connected_to_server
         ctx.is_connected_to_server = connected_to_server
         ctx.last_time = asyncio.get_running_loop().time()
+        if connected_to_server:
+            logger.info("Connected to the multiworld server.")
+        elif was_connected:
+            logger.warning("Lost connection to the multiworld server. There is no "
+                           "automatic reconnect - return to the main menu and press "
+                           "Connect. Anything done while disconnected will be replaced "
+                           "by the server's saved state.")
+            # the branch at the bottom would otherwise follow this immediately with its own
+            # "waiting for player to connect" line, saying the same thing twice
+            ctx.last_error_message = WAITING_FOR_SERVER
 
     await _try_pending_connect(ctx)
     await run_callbacks(ctx, connected_to_server)
@@ -356,10 +388,9 @@ async def _handle_game_ready(ctx: MKSMContext) -> None:
 
         await asyncio.sleep(TICK_INTERVAL)
     else:
-        message = "Waiting for player to connect to server"
-        if ctx.last_error_message != message:
-            logger.info(message)
-            ctx.last_error_message = message
+        if ctx.last_error_message != WAITING_FOR_SERVER:
+            logger.info(WAITING_FOR_SERVER)
+            ctx.last_error_message = WAITING_FOR_SERVER
         await asyncio.sleep(1)
 
 
@@ -407,7 +438,11 @@ def launch_client():
 
         if gui_enabled:
             ctx.run_gui()
-        ctx.run_cli()
+        else:
+            # Only read stdin when there is no GUI to type into. run_cli() keeps a console
+            # input task alive, which is what turns a Ctrl+C in the terminal into a
+            # KeyboardInterrupt in the middle of the event loop.
+            ctx.run_cli()
 
         ctx.set_notify("EVENT_ARRAY")
         ctx.set_notify("CURRENT_EXP")
@@ -428,9 +463,14 @@ def launch_client():
     import colorama
 
     colorama.init()
-
-    asyncio.run(main())
-    colorama.deinit()
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        # Ctrl+C is a normal way to stop the client - exit quietly instead of dumping a
+        # traceback through every pending task.
+        logger.info("Closing MKSM Client.")
+    finally:
+        colorama.deinit()
 
 
 if __name__ == "__main__":

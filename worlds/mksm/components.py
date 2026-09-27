@@ -1,21 +1,4 @@
-import subprocess
-import sys
-
-from worlds.LauncherComponents import Component, Type, components, icon_paths, launch_subprocess
-
-from Utils import local_path
-
-
-# def launch_client(*args: str) -> None:
-#     # Spawn a real OS subprocess (instead of routing through LauncherComponents.launch(),
-#     # which would run this in-process via multiprocessing with no console attached).
-#     # CREATE_NEW_CONSOLE gives us an actual visible window on Windows.
-#     creationflags = subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
-#     subprocess.Popen(
-#         [sys.executable, "-m", "worlds.mksm.MKSMClient", *args],
-#         cwd=local_path(),
-#         creationflags=creationflags,
-#     )
+from worlds.LauncherComponents import Component, Type, components, icon_paths, launch
 
 
 def run_client(*args: str) -> None:
@@ -24,10 +7,9 @@ def run_client(*args: str) -> None:
 
     :param *args: Variable length argument list passed to the client.
     """
-    print("Running The Mortal Kombat: Shaolin Monks Client")
     from .MKSMClient import launch_client as main
 
-    launch_subprocess(main, name="MKSMClient", args=args)
+    launch(main, name="MKSM Client", args=args)
 
 
 components.append(

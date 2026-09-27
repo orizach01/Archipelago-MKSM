@@ -4,7 +4,7 @@ from typing import Optional, Dict
 
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
     NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII, \
-    ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE
+    ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, TOURNAMENT_VICTORY_AMOUNT
 
 from .pcsx2_interface.pine import Pine
 
@@ -341,6 +341,20 @@ class MKSMInterface(GameInterface):
         koin_string_addr = self.addresses.get("RED_KOIN_STRING")
         koin_str = f"RED KOINS:               {have_1}{have_2} / {needed_1}{needed_2} / {total_1}{total_2}\0"
         self._write_bytes(koin_string_addr, bytes(koin_str, encoding="ASCII"))
+
+    def set_tournament_string(self, have):
+
+        #                 %      d   space  /    space  %     d     NULL
+        # orginal_fmt = [0x25, 0x64, 0x20, 0x2f, 0x20, 0x25, 0x64, 0x0]
+
+        # clearing the original %d / %d format to be a clear space, injecting our own string instead
+        only_spaces = [0x20] * 14
+        fmt_addr = self.addresses.get("TIME_FORMAT_STRING")
+        self._write_bytes(fmt_addr, bytes(only_spaces))
+
+        game_time_addr = self.addresses.get("GAME_TIME_STRING")
+        game_time_str = f"TOURNAMENT VICTORIES: {have} / {TOURNAMENT_VICTORY_AMOUNT}\0"
+        self._write_bytes(game_time_addr, bytes(game_time_str, encoding="ASCII"))
 
     def set_character(self, current_character_option):
         character_value = CHARACTER_OPTION_TO_VALUE_IN_GAME[current_character_option]
