@@ -249,7 +249,7 @@ EVENTS_TO_LOCATION_NAME = {
 
 # events that we want to automatically insert into every new run to avoid softlocks
 # for example reaching the fatality room without a bloodbar will softlock the game
-DEFAULT_EVENT_ARRAY = [
+_DEFAULT_EVENT_ARRAY = [
     # skip fatality event
     *_make_event(0x63, 0x15),
     *_make_event(0x63, 0x14),
@@ -276,10 +276,6 @@ DEFAULT_EVENT_ARRAY = [
     *_make_event(0x8e, 0x41),
     *_make_event(0x8e, 0x26),
 
-    # moon red koin event
-    *_make_event(0x62, 0x3f),
-    *_make_event(0x62, 0x44),
-
     # events that spawn xp and the red koin in the brutality room
     # prevents needing to beat reptile to get that red koin
     # only one of the events here actually spawns the red koin, I didn't bother checking which one is it
@@ -292,8 +288,35 @@ DEFAULT_EVENT_ARRAY = [
     *_make_event(0x8e, 0x61),
     *_make_event(0x8e, 0x62),
     *_make_event(0x8e, 0x63),
-
 ]
+
+MOON_KOIN_EVENTS = [
+    *_make_event(0x62, 0x3f),
+    *_make_event(0x62, 0x44),
+]
+
+SHOOTING_KOIN_EVENTS = [
+    *_make_event(0x8f, 0x29),  # forest eye         (forest map 16)
+    *_make_event(0x84, 0x3b),  # forest bridges     (forest map 5)
+    *_make_event(0x2e, 0x28),  # wasteland          (wasteland map 15)
+    *_make_event(0x1e, 0x0e),  # tombs start        (tombs map 31)
+    *_make_event(0x08, 0x1b),  # tombs test might   (tombs map 9)
+    *_make_event(0xc4, 0x31),  # monastery window   (monastery map 6 -> 5)
+    *_make_event(0x43, 0x2d),  # foundry            (foundry map 5 -> 4)
+]
+
+
+def default_event_array(character: int):
+    character = Character(character)
+    default = _DEFAULT_EVENT_ARRAY
+
+    if not character.can_shoot_moon():
+        default += MOON_KOIN_EVENTS
+    if character.is_vs():
+        default += SHOOTING_KOIN_EVENTS
+
+    return default
+
 
 # The event we inject to open the foundry door once the player has enough Tournament
 # victories. The five medallion events in FOUNDRY_DOOR_EVENTS are visual only.
@@ -303,20 +326,6 @@ DEFAULT_EVENT_ARRAY = [
 # portal cutscene's "already played" marker, so deleting it makes the cutscene replay on
 # every transit and reopen the door each time. The gate is FOUNDRY_DOOR_FLAG instead.
 FOUNDRY_DOOR_OPEN_EVENT = _make_event(0xc1, 0x3e)
-
-FOUNDRY_DOOR_EVENTS = [
-    *_make_event(0xc1, 0x4a),
-    *_make_event(0xc1, 0x4c),
-    *_make_event(0xc1, 0x4e),
-    *_make_event(0xc1, 0x61),
-    *_make_event(0xc1, 0x50),
-    *_make_event(0xc1, 0x3e),
-    *_make_event(0xc1, 0x3f),
-    *_make_event(0xc1, 0x33),
-    *_make_event(0xc1, 0x59),
-    *_make_event(0xc1, 0x4d),
-    *_make_event(0xc1, 0x4f),
-]
 
 ANIMATIONS_TO_LOCATION_NAME = {
     # Liu Kang:

@@ -47,27 +47,27 @@ def set_purchase_rules(world: MKSMWorld) -> None:
         0: [
             "Purchase upgrade - R2 2",
         ],
-        1: [
+        2: [
             "Purchase upgrade - Square 2",
             "Purchase upgrade - Triangle 2",
             "Purchase upgrade - Circle 2",
+            "Purchase upgrade - R2 3",
         ],
-        2: [
+        3: [
             "Purchase combo 1",
             "Purchase combo 2",
             "Purchase combo 3",
             "Purchase combo 4",
             "Purchase combo 5",
         ],
-        3: [
+        5: [
             "Purchase upgrade - Square 3",
             "Purchase upgrade - Triangle 3",
             "Purchase upgrade - Circle 3",
-            "Purchase upgrade - R2 3",
+            "Purchase upgrade - R2 4",
             "Purchase upgrade - Square 4",
             "Purchase upgrade - Triangle 4",
             "Purchase upgrade - Circle 4",
-            "Purchase upgrade - R2 4",
             "Purchase upgrade - Circle 5",
             "Purchase upgrade - R2 5",
         ],
@@ -167,7 +167,7 @@ def connect_regions(world: MKSMWorld) -> None:
     portal_1.connect(wu_shi)
     portal_1.connect(portal_2)
 
-    portal_2.connect(netherrealm, rule=SWING)
+    portal_2.connect(netherrealm, rule=SWING & (DOUBLE_JUMP | (LONG_JUMP & WALL_RUN)))
 
     portal_1.connect(forest, rule=FIST_OF_RUIN)
     forest.connect(forest_bridges, rule=SWING & WALL_CLIMB)

@@ -19,7 +19,7 @@ from CommonClient import CommonContext, server_loop, get_base_parser, handle_url
     ClientCommandProcessor, gui_enabled
 
 import Utils
-from worlds.mksm.consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, \
+from worlds.mksm.consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, \
     chunk_events, flatten_events
 
 from .MKSMInterface import MKSMInterface
@@ -104,12 +104,15 @@ class MKSMCommandProcessor(ClientCommandProcessor):
 
         current_events = ctx.stored_data.get("EVENT_ARRAY")
 
-        if not current_events or current_events == DEFAULT_EVENT_ARRAY:
+        if not ctx.slot_data or "character" not in ctx.slot_data:
+            return False  # haven't heard back from the server yet - don't guess
+
+        if not current_events or current_events == default_event_array(ctx.slot_data['character']):
             self.output("no event to remove")
             return True
 
         events = chunk_events(current_events)
-        default_events = set(chunk_events(DEFAULT_EVENT_ARRAY))
+        default_events = set(chunk_events(default_event_array(ctx.slot_data['character'])))
         last_room = events[-1][0]
         self.output(f"Removing non-default events from last room: {hex(last_room)}")
         remaining_events = [
@@ -146,7 +149,8 @@ class MKSMCommandProcessor(ClientCommandProcessor):
         current_events = list(ctx.stored_data.get("EVENT_ARRAY") or [])
         existing = set(chunk_events(current_events))
 
-        missing_events = [event for event in chunk_events(DEFAULT_EVENT_ARRAY) if event not in existing]
+        missing_events = [event for event in chunk_events(default_event_array(ctx.slot_data['character'])) if
+                          event not in existing]
         new_array = current_events + flatten_events(missing_events)
 
         ctx.game_interface.clear_event_log(bytes(new_array))

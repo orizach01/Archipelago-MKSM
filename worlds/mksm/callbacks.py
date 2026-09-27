@@ -12,7 +12,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from NetUtils import ClientStatus
-from .consts import GameState, DEFAULT_EVENT_ARRAY, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
+from .consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
     FOUNDRY_DOOR_OPEN_EVENT, TOURNAMENT_VICTORY_AMOUNT, \
     FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events
 from .items import ITEM_NAME_TO_ID
@@ -44,17 +44,13 @@ if TYPE_CHECKING:
 async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
-    # TODO check other shooting koins for all characters
-    # TODO grant fake fist of ruin for soul tomb room? area 0x04
-    # TODO grant fake fist of ruin for sub zero boss room? area 0x2c
-    # TODO grant fake climb for reptile room? area 0x90
     # TODO check portal start area open world style -> update: address in code notes for pause menu area
     # TODO open co op doors from start
     # TODO smoke missions
     # TODO mileena boss is bugged, check which events are needed to not bug her -> update: need to restart game to fix
     # TODO nice error message when exiting pcsx2/disconnecting from server
-    # TODO foundry door still opens with beating all bosses in intended order, need to maybe remove some boss events
-    #      after beating them to not trigger door opening cutscene
+    # TODO add shopsanity option?
+    # TODO tournament victory tracker in menu
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
@@ -94,8 +90,11 @@ def clear_events(ctx: MKSMContext):
     if ctx.game_state == GameState.GAMEPLAY:
         return
 
+    if not ctx.slot_data or "character" not in ctx.slot_data:
+        return  # haven't heard back from the server yet - don't guess
+
     if "EVENT_ARRAY" not in ctx.stored_data or ctx.stored_data["EVENT_ARRAY"] is None:
-        server_array = DEFAULT_EVENT_ARRAY
+        server_array = default_event_array(ctx.slot_data['character'])
     else:
         server_array = list(ctx.stored_data["EVENT_ARRAY"])
 
@@ -412,11 +411,14 @@ async def check_completed_game(ctx: MKSMContext):
     boss_goal = ctx.slot_data["boss_goal"]
     required_boss_locations = []
 
+    if boss_goal >= BossGoal.option_shao_kahn_only:
+        required_boss_locations.append(FINAL_BOSS_LOCATION)
     if boss_goal >= BossGoal.option_main_bosses:
         required_boss_locations += MAIN_BOSS_LOCATIONS
-        required_boss_locations.append(FINAL_BOSS_LOCATION)
     if boss_goal >= BossGoal.option_main_and_secret_bosses:
         required_boss_locations += SECRET_BOSS_LOCATIONS
+
+    assert len(required_boss_locations) > 0, "no boss goal error"
 
     bosses_defeated = all(LOCATION_NAME_TO_ID[name] in ctx.checked_locations for name in required_boss_locations)
 

@@ -19,10 +19,10 @@ class Character(Choice):
     option_kung_lao = 1
     option_sub_zero = 2
     option_scorpion = 3
-    option_baraka = 4  # can get r2 upgrades
-    option_kitana = 5  # can get r2 upgrades
-    option_reptile = 6  # can get r2 upgrades
-    option_johnny_cage = 7  # can get r2 upgrades
+    option_baraka = 4
+    option_kitana = 5
+    option_reptile = 6
+    option_johnny_cage = 7
 
     default = option_liu_kang
 
@@ -32,6 +32,12 @@ class Character(Choice):
             Character.option_kitana,
             Character.option_reptile,
             Character.option_johnny_cage,
+        )
+
+    def can_shoot_moon(self):
+        return self in (
+            Character.option_liu_kang,
+            Character.option_kung_lao,
         )
 
 
