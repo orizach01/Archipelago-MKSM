@@ -14,8 +14,16 @@ import traceback
 import typing
 from collections import deque
 
+tracker_loaded = False
+try:
+    from worlds.tracker.TrackerClient import TrackerGameContext as SuperContext
+
+    tracker_loaded = True
+except ModuleNotFoundError:
+    from CommonClient import CommonContext as SuperContext
+
 # CommonClient import first to trigger ModuleUpdater
-from CommonClient import CommonContext, server_loop, get_base_parser, handle_url_arg, logger, \
+from CommonClient import server_loop, get_base_parser, handle_url_arg, logger, \
     ClientCommandProcessor, gui_enabled
 
 import Utils
@@ -33,6 +41,8 @@ WAITING_FOR_SERVER = "Waiting for player to connect to server"
 
 class MKSMCommandProcessor(ClientCommandProcessor):
     ctx: MKSMContext
+
+    tags = {"AP"}
 
     # def _cmd_exp(self, value: str = "1000") -> bool:
     #     """Add given exp
@@ -175,7 +185,7 @@ class MKSMCommandProcessor(ClientCommandProcessor):
         await ctx.update_death_link(not is_death_link)
 
 
-class MKSMContext(CommonContext):
+class MKSMContext(SuperContext):
     game = "Mortal Kombat: Shaolin Monks"
     items_handling = 0b111  # receive all items, including our own and starting inventory
     want_slot_data = True
@@ -246,6 +256,7 @@ class MKSMContext(CommonContext):
         await self.send_connect()
 
     def on_package(self, cmd: str, args: dict) -> None:
+        super().on_package(cmd, args)
         if cmd == "Connected":
             self.slot_data = args.get("slot_data", {})
 
@@ -286,6 +297,11 @@ class MKSMContext(CommonContext):
 
                 message = f"Sent {item_name} to {owner} ({location_name})"
                 self.message_queue.append(message)
+
+    def make_gui(self):
+        ui = super().make_gui()
+        ui.base_title = "Archipelago MKSM Client"
+        return ui
 
 
 def update_connection_status(ctx: MKSMContext, status: bool):
@@ -415,34 +431,30 @@ async def _handle_game_not_ready(ctx: MKSMContext):
     await asyncio.sleep(3)
 
 
-def launch_client():
+def launch_client(*args: str) -> None:
     Utils.init_logging("MKSM Client")
 
     async def main():
         multiprocessing.freeze_support()
         parser = get_base_parser()
-        # get_base_parser() defines neither of these, but handle_url_arg reads both.
         parser.add_argument("--name", default=None, help="Slot Name to connect as.")
         parser.add_argument("url", nargs="?", help="Archipelago connection url")
-        args = handle_url_arg(parser.parse_args(), parser)
+        parsed = handle_url_arg(parser.parse_args(args), parser)
 
-        # server_address stays None so server_loop doesn't connect behind the main-menu
-        # gate; _try_pending_connect spends the address once the game is ready.
-        ctx = MKSMContext(None, args.password)
-        ctx.pending_server_address = args.connect
-        if args.name:
-            ctx.auth = args.name
+        ctx = MKSMContext(None, parsed.password)
+        ctx.pending_server_address = parsed.connect
+        if parsed.name:
+            ctx.auth = parsed.name
 
         ctx.server_task = asyncio.create_task(server_loop(ctx), name="Server Loop")
         ctx.tags.add("Client")
 
+        if tracker_loaded:
+            ctx.run_generator()
         if gui_enabled:
             ctx.run_gui()
         else:
-            # Only read stdin when there is no GUI to type into. run_cli() keeps a console
-            # input task alive, which is what turns a Ctrl+C in the terminal into a
-            # KeyboardInterrupt in the middle of the event loop.
-            ctx.run_cli()
+           ctx.run_cli()
 
         ctx.set_notify("EVENT_ARRAY")
         ctx.set_notify("CURRENT_EXP")
@@ -466,8 +478,6 @@ def launch_client():
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        # Ctrl+C is a normal way to stop the client - exit quietly instead of dumping a
-        # traceback through every pending task.
         logger.info("Closing MKSM Client.")
     finally:
         colorama.deinit()

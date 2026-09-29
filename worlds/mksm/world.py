@@ -1,8 +1,8 @@
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, Optional
 
 # Imports of base Archipelago modules must be absolute.
-from Options import OptionError
+from Options import OptionError, Option
 from worlds.AutoWorld import World
 
 # Imports of your world's files must be relative.
@@ -31,11 +31,22 @@ class MKSMWorld(World):
 
     origin_region_name = "Menu"
 
+    ut_can_gen_without_yaml = True
+
     def generate_early(self) -> None:
-        # Both halves of the goal can be switched off independently - boss_goal can be
-        # no_bosses and red_koin_need_percent can be 0 - and with both off the seed would
-        # be complete the moment it starts. Catch it here so the player finds out now
-        # rather than after generating.
+        re_gen_passthrough = getattr(self.multiworld, "re_gen_passthrough", {})
+        if re_gen_passthrough and self.game in re_gen_passthrough:
+            # Get the passed through slot data from the real generation
+            slot_data: dict[str, Any] = re_gen_passthrough[self.game]
+
+            slot_options: dict[str, Any] = slot_data.get("options", {})
+            # Set all your options here instead of getting them from the yaml
+            for key, value in slot_options.items():
+                opt: Optional[Option] = getattr(self.options, key, None)
+                if opt is not None:
+                    # You can also set .value directly but that won't work if you have OptionSets
+                    setattr(self.options, key, opt.from_any(value))
+
         no_bosses = self.options.boss_goal == mksm_options.BossGoal.option_no_bosses
         no_koins = self.options.red_koin_need_percent == 0
         if no_bosses and no_koins:
@@ -50,11 +61,9 @@ class MKSMWorld(World):
         locations.create_all_locations(self)
 
     def set_rules(self) -> None:
-        print("SETTING RULES")
         rules.set_all_rules(self)
 
     def create_items(self) -> None:
-        print("SETTING ITEMS")
         items.create_all_items(self)
 
     def create_item(self, name: str) -> items.MKSMItem:
@@ -70,4 +79,13 @@ class MKSMWorld(World):
             "red_koin_need_percent": self.options.red_koin_need_percent.value,
             "boss_goal": self.options.boss_goal.value,
             "fatalitysanity": bool(self.options.fatalitysanity.value),
+            "options": self.options.as_dict("character",
+                                            "red_koin_need_percent",
+                                            "boss_goal",
+                                            "fatalitysanity")
         }
+
+    @staticmethod
+    def interpret_slot_data(slot_data: dict[str, Any]) -> dict[str, Any]:
+        # Trigger a regen in UT
+        return slot_data

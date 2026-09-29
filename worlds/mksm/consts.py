@@ -310,7 +310,7 @@ SHOOTING_KOIN_EVENTS = [
 
 def default_event_array(character: int):
     character = Character(character)
-    default = _DEFAULT_EVENT_ARRAY
+    default = _DEFAULT_EVENT_ARRAY.copy()
 
     if not character.can_shoot_moon():
         default += MOON_KOIN_EVENTS
