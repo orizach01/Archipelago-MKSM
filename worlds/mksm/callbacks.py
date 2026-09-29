@@ -49,7 +49,6 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO smoke missions
     # TODO mileena boss is bugged, check which events are needed to not bug her -> update: need to restart game to fix
     # TODO add shopsanity option?
-    # TODO red koin goal only, add -1 boss option idk
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
