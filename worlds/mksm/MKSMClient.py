@@ -42,8 +42,6 @@ WAITING_FOR_SERVER = "Waiting for player to connect to server"
 class MKSMCommandProcessor(ClientCommandProcessor):
     ctx: MKSMContext
 
-    tags = {"AP"}
-
     # def _cmd_exp(self, value: str = "1000") -> bool:
     #     """Add given exp
     #     Usage: /exp   or   /exp 5000"""
@@ -206,6 +204,7 @@ class MKSMContext(SuperContext):
     last_error_message: str | None = None
     pcsx2_sync_task: asyncio.Task | None = None
     is_paused_task: asyncio.Task | None = None
+    tags = {"AP"}
 
     def __init__(self, server_address: str | None, password: str | None) -> None:
         super().__init__(server_address, password)
