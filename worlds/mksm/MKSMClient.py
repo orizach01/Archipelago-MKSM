@@ -44,49 +44,6 @@ REQUIRED_SLOT_DATA = ("character", "red_koin_amount", "red_koin_need_percent", "
 class MKSMCommandProcessor(ClientCommandProcessor):
     ctx: MKSMContext
 
-    # def _cmd_exp(self, value: str = "1000") -> bool:
-    #     """Add given exp
-    #     Usage: /exp   or   /exp 5000"""
-    #     ctx: MKSMContext = self.ctx
-    #     ctx.game_interface.add_exp(int(value))
-    #     self.output(f"Added {value} EXP")
-    #     return True
-
-    # def _cmd_health(self):
-    #     """
-    #     prints current health status
-    #     """
-    #     ctx: MKSMContext = self.ctx
-    #     print(ctx.game_interface.health_status())
-    #     return True
-
-    # def _cmd_events(self, n: str = "5") -> bool:
-    #     """prints the last event's room and the last n events in the server's saved event log
-    #     Usage: /events   or   /events 10"""
-    #     ctx: MKSMContext = self.ctx
-    #     try:
-    #         count = max(int(n), 1)
-    #     except ValueError:
-    #         self.output(f"'{n}' is not a number")
-    #         return False
-    #
-    #     events = chunk_events(ctx.stored_data.get(ctx.event_array_key) or [])
-    #
-    #     if not events:
-    #         self.output("event log is empty")
-    #         return True
-    #
-    #     # this reads the server's stored array, not live game memory, so it's whatever
-    #     # room last logged an event rather than necessarily where the player is now.
-    #     self.output(f"last event's room: {hex(events[-1][0])}")
-    #
-    #     for event in events[-count:]:
-    #         room, event_code = event[0], event[4]
-    #         location_name = EVENTS_TO_LOCATION_NAME.get(event, "<unmapped>")
-    #         self.output(f"room={hex(room)} event={hex(event_code)} ({location_name})")
-    #
-    #     return True
-
     def _cmd_debug(self) -> bool:
         """
         Toggles whether the Debug menu replaces the options in the pause screen
@@ -104,79 +61,6 @@ class MKSMCommandProcessor(ClientCommandProcessor):
             self.output("Debug Menu turned OFF")
 
         return True
-
-    # async def _cmd_removeevent(self) -> bool:
-    #     """removes all events from the room the last event happened in, use in cases of
-    #     softlocks if exited at wrong times, use only on main menu"""
-    #     ctx: MKSMContext = self.ctx
-    #     if ctx.game_state != GameState.MAIN_MENU:
-    #         self.output("only use /removeevent on the main menu")
-    #         return True
-    #
-    #     current_events = ctx.stored_data.get(ctx.event_array_key)
-    #
-    #     if not ctx.slot_data or "character" not in ctx.slot_data:
-    #         return False  # haven't heard back from the server yet - don't guess
-    #
-    #     if not current_events or current_events == default_event_array(ctx.slot_data):
-    #         self.output("no event to remove")
-    #         return True
-    #
-    #     events = chunk_events(current_events)
-    #     default_events = set(chunk_events(default_event_array(ctx.slot_data)))
-    #     last_room = events[-1][0]
-    #     self.output(f"Removing non-default events from last room: {hex(last_room)}")
-    #     remaining_events = [
-    #         event for event in events
-    #         if event[0] != last_room or event in default_events
-    #     ]
-    #     new_array = flatten_events(remaining_events)
-    #
-    #     # no clear_event_log here on purpose: clear_events() pushes the server array back
-    #     # into the game on the next non-gameplay tick, which the main-menu guard guarantees.
-    #     await ctx.send_msgs([{"cmd": "Set",
-    #                           "key": ctx.event_array_key,
-    #                           "operations": [
-    #                               {
-    #                                   "operation": "replace",
-    #                                   "value": new_array
-    #                               }
-    #                           ],
-    #                           }])
-    #
-    #     return True
-    #
-    # async def _cmd_default(self) -> bool:
-    #     """adds the default event array's entries back into the current event array
-    #     (without removing anything already there)"""
-    #     ctx: MKSMContext = self.ctx
-    #     if not ctx.game_interface.get_connection_state():
-    #         self.output("can't restore default events - not connected to the game.")
-    #         return False
-    #     if ctx.game_state == GameState.GAMEPLAY:
-    #         self.output("only use /default outside of gameplay.")
-    #         return False
-    #
-    #     current_events = list(ctx.stored_data.get(ctx.event_array_key) or [])
-    #     existing = set(chunk_events(current_events))
-    #
-    #     missing_events = [event for event in chunk_events(default_event_array(ctx.slot_data)) if
-    #                       event not in existing]
-    #     new_array = current_events + flatten_events(missing_events)
-    #
-    #     ctx.game_interface.clear_event_log(bytes(new_array))
-    #
-    #     await ctx.send_msgs([{"cmd": "Set",
-    #                           "key": ctx.event_array_key,
-    #                           "operations": [
-    #                               {
-    #                                   "operation": "replace",
-    #                                   "value": new_array
-    #                               }
-    #                           ],
-    #                           }])
-    #
-    #     return True
 
     async def _cmd_deathlink(self):
         ctx: MKSMContext = self.ctx
