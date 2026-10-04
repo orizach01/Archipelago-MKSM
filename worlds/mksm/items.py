@@ -83,13 +83,14 @@ def create_all_items(world: MKSMWorld) -> None:
         world.create_item("Double Jump"),
     ]
 
-    if not character.is_vs():
-        itempool += [world.create_item(f"Combo {i + 1}") for i in range(amounts.combo)]
-        itempool += [world.create_item("Square special upgrade") for _ in range(amounts.square)]
-        itempool += [world.create_item("Triangle special upgrade") for _ in range(amounts.triangle)]
-        itempool += [world.create_item("Circle special upgrade") for _ in range(amounts.circle)]
+    if world.options.shopsanity:
+        if not character.is_vs():
+            itempool += [world.create_item(f"Combo {i + 1}") for i in range(amounts.combo)]
+            itempool += [world.create_item("Square special upgrade") for _ in range(amounts.square)]
+            itempool += [world.create_item("Triangle special upgrade") for _ in range(amounts.triangle)]
+            itempool += [world.create_item("Circle special upgrade") for _ in range(amounts.circle)]
 
-    itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2)]
+        itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2)]
 
     itempool += [world.create_item("Health upgrade") for _ in range(HEALTH_UPGRADE_AMOUNT)]
     itempool += [world.create_item("Tournament victory") for _ in range(TOURNAMENT_VICTORY_AMOUNT)]

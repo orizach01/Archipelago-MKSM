@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from rule_builder.options import OptionFilter
 from rule_builder.rules import Has, Rule, HasFromListUnique, AtLeast, CanReachRegion
 from .consts import TOURNAMENT_VICTORY_AMOUNT
 from .locations import FINISHING_MOVES_LOCATIONS
-from .options import BossGoal
+from .options import BossGoal, Shopsanity
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -20,8 +21,11 @@ FIST_OF_RUIN: Rule = Has("Fist of Ruin")
 FATALITY: Rule = Has("Blood bar", count=1)
 MULTALITY: Rule = Has("Blood bar", count=2)
 BRUTALITY: Rule = Has("Blood bar", count=3)
-LAUNCHING_THROW = Has("R2 special upgrade", count=2)
-
+LAUNCHING_THROW = Has("R2 special upgrade",
+                      count=2,
+                      options=[OptionFilter(Shopsanity, True)],
+                      filtered_resolution=True,
+                      )
 KITANA = Has("Kitana defeated item")
 REPTILE = Has("Reptile defeated item")
 BARAKA = Has("Baraka defeated item")

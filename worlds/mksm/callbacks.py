@@ -53,7 +53,6 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO group locations
     # TODO group options
     # TODO make tournament victory foundry door optional, have a way to open foundry door if beaten all bosses
-    # TODO remove event items if not needed for goal
     # TODO maybe add a special mana upgrade item?
 
     if ap_connected and ctx.slot_data is not None:
@@ -303,25 +302,27 @@ def on_pause_changed(ctx: MKSMContext, is_paused: bool) -> None:
     the next tick. The game builds the pause menu from these values within a frame or
     two of setting the flag, and a tick is tens of milliseconds of blocking PINE work -
     far too late. Everything in here must stay cheap for the same reason."""
-    if is_paused:
-        _write_upgrades(ctx, *_upgrades_from_checked(ctx))
-        ctx.set_upgrades_in_pause = True
-    else:
-        _write_upgrades(ctx, *_upgrades_from_received(ctx))
-        ctx.set_upgrades_in_pause = False
+    if ctx.slot_data["shopsanity"]:
+        if is_paused:
+            _write_upgrades(ctx, *_upgrades_from_checked(ctx))
+            ctx.set_upgrades_in_pause = True
+        else:
+            _write_upgrades(ctx, *_upgrades_from_received(ctx))
+            ctx.set_upgrades_in_pause = False
 
 
 def set_move_upgrades(ctx: MKSMContext) -> None:
     """Safety net for on_pause_changed: if an edge was missed because the loop was
     blocked inside a tick, this corrects it. Latched, so it is a no-op when the fast
     path already ran."""
-    if ctx.is_paused:
-        if not ctx.set_upgrades_in_pause:
-            _write_upgrades(ctx, *_upgrades_from_checked(ctx))
-            ctx.set_upgrades_in_pause = True
-    else:
-        _write_upgrades(ctx, *_upgrades_from_received(ctx))
-        ctx.set_upgrades_in_pause = False
+    if ctx.slot_data["shopsanity"]:
+        if ctx.is_paused:
+            if not ctx.set_upgrades_in_pause:
+                _write_upgrades(ctx, *_upgrades_from_checked(ctx))
+                ctx.set_upgrades_in_pause = True
+        else:
+            _write_upgrades(ctx, *_upgrades_from_received(ctx))
+            ctx.set_upgrades_in_pause = False
 
 
 def set_abilities(ctx: MKSMContext) -> None:

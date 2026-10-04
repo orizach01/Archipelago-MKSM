@@ -10,7 +10,6 @@ class Character(Choice):
     That means you don't need to unlock Scorpion/Sub-Zero first in order to play as them.
     The VS mode exclusive characters are also available, but due to how they work they always start with fully upgraded
      special moves except for R2, so that means there will be no special move upgrade items in the multiworld except R2,
-     and no blood bar upgrades beyond the first one.
     You can still purchase upgrades in the menu like with other characters.
     """
     display_name = "Character"
@@ -88,6 +87,16 @@ class Fatalitysanity(DefaultOnToggle):
     display_name = "Fatalitysanity"
 
 
+class Shopsanity(DefaultOnToggle):
+    """
+    If on, adds checks for purchasing special move upgrades and combos
+    Logic expects you to be able to reach a different amount of regions in the game before buying tiers of upgrades
+    and to buy upgrades in order or price, so buy the cheap upgrades first then go up.
+    If off, buying special move upgrades acts like the vanilla game.
+    """
+    display_name = "Shopsanity"
+
+
 class SkipTutorial(Toggle):
     """
     Turn this option on to skip the turotials in Goro's Lair.
@@ -111,5 +120,6 @@ class MKSMOptions(PerGameCommonOptions):
     red_koin_need_percent: RedKoinPercent
     boss_goal: BossGoal
     fatalitysanity: Fatalitysanity
+    shopsanity: Shopsanity
     wu_shi_start: WuShiStart
     skip_tutorial: SkipTutorial
