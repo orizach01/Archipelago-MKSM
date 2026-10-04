@@ -4,7 +4,8 @@ from typing import Optional, Dict
 
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
     NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII, \
-    ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, TOURNAMENT_VICTORY_AMOUNT
+    ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, TOURNAMENT_VICTORY_AMOUNT, \
+    MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES
 
 from .pcsx2_interface.pine import Pine
 
@@ -447,3 +448,8 @@ class MKSMInterface(GameInterface):
     def set_starting_area(self, area):
         addr = self.addresses.get("STARTING_AREA")
         self._write32(addr, area)
+
+    def set_max_mana(self, mana_upgrades: int):
+        level = min(mana_upgrades, MANA_UPGRADE_AMOUNT)
+        for addr in self.addresses.get("MAX_MANA"):
+            self._write16(addr, MAX_MANA_UPGRADE_VALUES[level])

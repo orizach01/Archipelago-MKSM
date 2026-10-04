@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from BaseClasses import Item, ItemClassification
 from .consts import CHARACTER_PURCHASE_AMOUNTS, HEALTH_UPGRADE_AMOUNT, BLOOD_BAR_AMOUNT, FILLER_EXP, \
-    TOURNAMENT_VICTORY_AMOUNT
+    TOURNAMENT_VICTORY_AMOUNT, MANA_UPGRADE_AMOUNT
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -31,6 +31,7 @@ ITEM_NAME_TO_ID = {
     "Blood bar": 19,
     f"{FILLER_EXP} EXP": 20,
     "Tournament victory": 21,
+    "Mana upgrade": 22,
 }
 
 DEFAULT_ITEM_CLASSIFICATIONS = {
@@ -54,6 +55,7 @@ DEFAULT_ITEM_CLASSIFICATIONS = {
     "Circle special upgrade": ItemClassification.useful,
     "R2 special upgrade": ItemClassification.progression_deprioritized_skip_balancing,
     "Health upgrade": ItemClassification.useful,
+    "Mana upgrade": ItemClassification.useful,
     f"{FILLER_EXP} EXP": ItemClassification.filler,
 }
 
@@ -93,6 +95,9 @@ def create_all_items(world: MKSMWorld) -> None:
         itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2)]
 
     itempool += [world.create_item("Health upgrade") for _ in range(HEALTH_UPGRADE_AMOUNT)]
+
+    if world.options.mana_upgrades:
+        itempool += [world.create_item("Mana upgrade") for _ in range(MANA_UPGRADE_AMOUNT)]
 
     if world.options.randomize_tournament_victories:
         itempool += [world.create_item("Tournament victory") for _ in range(TOURNAMENT_VICTORY_AMOUNT)]

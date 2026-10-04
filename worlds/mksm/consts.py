@@ -221,6 +221,11 @@ ADDRESSES = {
 
         "STARTING_AREA": 0x5e2fc4,
         "MAIN_MENU_OPTION": 0x5ca2ac,
+
+        "MAX_MANA": (
+            0x169838,
+            0x18afe4,
+        )
     }
 }
 
@@ -524,3 +529,13 @@ TOURNAMENT_VICTORY_AMOUNT = 5
 WU_SHI_START_AREA = 0x67
 
 MAIN_MENU_NEW_GAME_OPTION = 0
+
+MAX_MANA_UPGRADE_VALUES = {
+    0: 0x42c8,  # 100.0 (vanilla)
+    1: 0x42fa,  # 125.0
+    2: 0x4316,  # 150.0
+    3: 0x432f,  # 175.0
+    4: 0x4348,  # 200.0
+}
+
+MANA_UPGRADE_AMOUNT = max(MAX_MANA_UPGRADE_VALUES.keys())

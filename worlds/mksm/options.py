@@ -113,12 +113,22 @@ class WuShiStart(Toggle):
     """
     display_name = "Wu-Shi Academy start"
 
+
 class RandomizeTournamentVictories(DefaultOnToggle):
     """
     If on, shuffles 5 tournament victories in the item pool, all 5 are required to open the door to the foundry.
     when off, beating all 5 main bosses is required to open the foundry door.
     """
     display_name = "Randomize tournament victories"
+
+
+class ManaUpgrades(DefaultOnToggle):
+    """
+    If on, shuffles 4 mana upgrades to the item pool.
+    the upgrades increase your maximum mana by 25% each time, doubling your mana after all upgrades
+    """
+    display_name = "Mana Upgrades"
+
 
 @dataclass
 class MKSMOptions(PerGameCommonOptions):
@@ -130,3 +140,4 @@ class MKSMOptions(PerGameCommonOptions):
     wu_shi_start: WuShiStart
     skip_tutorial: SkipTutorial
     randomize_tournament_victories: RandomizeTournamentVictories
+    mana_upgrades: ManaUpgrades

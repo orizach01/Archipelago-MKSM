@@ -83,6 +83,7 @@ class MKSMWorld(World):
             "wu_shi_start": bool(self.options.wu_shi_start.value),
             "skip_tutorial": bool(self.options.skip_tutorial.value),
             "randomize_tournament_victories": bool(self.options.randomize_tournament_victories.value),
+            "mana_upgrades": bool(self.options.mana_upgrades.value),
             "options": self.options.as_dict("character",
                                             "red_koin_need_percent",
                                             "boss_goal",
@@ -90,7 +91,8 @@ class MKSMWorld(World):
                                             "shopsanity",
                                             "wu_shi_start",
                                             "skip_tutorial",
-                                            "randomize_tournament_victories"
+                                            "randomize_tournament_victories",
+                                            "mana_upgrades",
                                             )
         }
 

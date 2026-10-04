@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING
 from NetUtils import ClientStatus
 from .consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
     FOUNDRY_DOOR_OPEN_EVENT, TOURNAMENT_VICTORY_AMOUNT, \
-    FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events, MAIN_MENU_NEW_GAME_OPTION, WU_SHI_START_AREA
+    FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events, MAIN_MENU_NEW_GAME_OPTION, WU_SHI_START_AREA, \
+    MANA_UPGRADE_AMOUNT, HEALTH_UPGRADE_AMOUNT
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 from .options import BossGoal
@@ -67,6 +68,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         set_move_upgrades(ctx)
         set_abilities(ctx)
         set_health_upgrades(ctx)
+        set_mana_upgrades(ctx)
         set_blood_bar(ctx)
         update_koin_counter(ctx)
         update_tournament_victories_counter(ctx)
@@ -349,7 +351,7 @@ async def check_events(ctx: MKSMContext) -> None:
 
 def set_health_upgrades(ctx: MKSMContext) -> None:
     health_upgrades = sum(item.item == ITEM_NAME_TO_ID["Health upgrade"] for item in ctx.items_received)
-    health_upgrades = min(health_upgrades, 4)
+    health_upgrades = min(health_upgrades, HEALTH_UPGRADE_AMOUNT)
 
     ctx.game_interface.set_health_upgrades(health_upgrades)
 
@@ -509,3 +511,13 @@ def set_wushi_start(ctx: MKSMContext):
         return
 
     ctx.game_interface.set_starting_area(WU_SHI_START_AREA)
+
+
+def set_mana_upgrades(ctx: MKSMContext):
+    if not ctx.slot_data["mana_upgrades"]:
+        return
+
+    mana_upgrades = sum(item.item == ITEM_NAME_TO_ID["Mana upgrade"] for item in ctx.items_received)
+    mana_upgrades = min(mana_upgrades, MANA_UPGRADE_AMOUNT)
+
+    ctx.game_interface.set_max_mana(mana_upgrades)
