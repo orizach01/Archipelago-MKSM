@@ -287,8 +287,7 @@ class MKSMInterface(GameInterface):
     def add_exp(self, exp_to_add):
         addr = self.addresses.get("EXP")
         current_exp = self._read32(addr)
-        current_exp += exp_to_add
-        self._write32(addr, current_exp)
+        self._write32(addr, max(0, current_exp + exp_to_add))
 
     def set_health_upgrades(self, health_upgrades: int) -> None:
         max_health = health_upgrades * 100 + 200

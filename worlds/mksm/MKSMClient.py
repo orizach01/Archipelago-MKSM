@@ -68,7 +68,7 @@ class MKSMCommandProcessor(ClientCommandProcessor):
             self.output(f"'{n}' is not a number")
             return False
 
-        events = chunk_events(ctx.stored_data.get("EVENT_ARRAY") or [])
+        events = chunk_events(ctx.stored_data.get(ctx.event_array_key) or [])
 
         if not events:
             self.output("event log is empty")
@@ -111,7 +111,7 @@ class MKSMCommandProcessor(ClientCommandProcessor):
             self.output("only use /removeevent on the main menu")
             return True
 
-        current_events = ctx.stored_data.get("EVENT_ARRAY")
+        current_events = ctx.stored_data.get(ctx.event_array_key)
 
         if not ctx.slot_data or "character" not in ctx.slot_data:
             return False  # haven't heard back from the server yet - don't guess
@@ -133,7 +133,7 @@ class MKSMCommandProcessor(ClientCommandProcessor):
         # no clear_event_log here on purpose: clear_events() pushes the server array back
         # into the game on the next non-gameplay tick, which the main-menu guard guarantees.
         await ctx.send_msgs([{"cmd": "Set",
-                              "key": "EVENT_ARRAY",
+                              "key": ctx.event_array_key,
                               "operations": [
                                   {
                                       "operation": "replace",
@@ -155,7 +155,7 @@ class MKSMCommandProcessor(ClientCommandProcessor):
             self.output("only use /default outside of gameplay.")
             return False
 
-        current_events = list(ctx.stored_data.get("EVENT_ARRAY") or [])
+        current_events = list(ctx.stored_data.get(ctx.event_array_key) or [])
         existing = set(chunk_events(current_events))
 
         missing_events = [event for event in chunk_events(default_event_array(ctx.slot_data)) if
@@ -165,7 +165,7 @@ class MKSMCommandProcessor(ClientCommandProcessor):
         ctx.game_interface.clear_event_log(bytes(new_array))
 
         await ctx.send_msgs([{"cmd": "Set",
-                              "key": "EVENT_ARRAY",
+                              "key": ctx.event_array_key,
                               "operations": [
                                   {
                                       "operation": "replace",
@@ -233,6 +233,36 @@ class MKSMContext(SuperContext):
         self.pending_server_address = None
         await super().connect(address)
 
+    def _seed_key(self, name: str) -> str:
+        return f"MKSM_{self.team}_{self.slot}_{name}"
+
+    @property
+    def event_array_key(self):
+        return self._seed_key("EVENT_ARRAY")
+
+    @property
+    def current_exp_key(self):
+        return self._seed_key("CURRENT_EXP")
+
+    @property
+    def exp_items_given_key(self):
+        return self._seed_key("EXP_ITEMS_GIVEN")
+
+    @property
+    def seed_keys(self):
+        return self.event_array_key, self.current_exp_key, self.exp_items_given_key
+
+    def forget_seed_state(self) -> None:
+        self.slot_data = None
+        self.exp_items_given = 0
+        self.health_upgrades = 0
+        self.set_upgrades_in_pause = False
+        self.was_dead = False
+        for key in self.seed_keys:
+            self.stored_data.pop(key, None)
+            self.stored_data_notification_keys.discard(key)
+        self.game_interface.forget_event_log_state()
+
     async def connection_closed(self) -> None:
         """Suppress AP's autoreconnect so every reconnection goes through the gate above.
 
@@ -245,6 +275,7 @@ class MKSMContext(SuperContext):
 
         server_loop sets this flag back to False on the next successful connect, and the
         autoreconnect gate is the only thing that reads it."""
+        self.forget_seed_state()
         self.disconnected_intentionally = True
         await super().connection_closed()
 
@@ -258,6 +289,7 @@ class MKSMContext(SuperContext):
         super().on_package(cmd, args)
         if cmd == "Connected":
             self.slot_data = args.get("slot_data", {})
+            self.set_notify(*self.seed_keys)
 
     def on_deathlink(self, data: typing.Dict[str, typing.Any]) -> None:
         super().on_deathlink(data)
@@ -453,11 +485,7 @@ def launch_client(*args: str) -> None:
         if gui_enabled:
             ctx.run_gui()
         else:
-           ctx.run_cli()
-
-        ctx.set_notify("EVENT_ARRAY")
-        ctx.set_notify("CURRENT_EXP")
-        ctx.set_notify("EXP_ITEMS_GIVEN")
+            ctx.run_cli()
 
         ctx.pcsx2_sync_task = asyncio.create_task(pcsx2_sync_task(ctx), name="PCSX2 Sync")
         ctx.is_paused_task = asyncio.create_task(paused_task(ctx), name="Paused Sync")

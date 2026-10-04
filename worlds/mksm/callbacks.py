@@ -98,10 +98,10 @@ def clear_events(ctx: MKSMContext):
     if not ctx.slot_data or "character" not in ctx.slot_data:
         return
 
-    if "EVENT_ARRAY" not in ctx.stored_data or ctx.stored_data["EVENT_ARRAY"] is None:
+    if ctx.event_array_key not in ctx.stored_data or ctx.stored_data[ctx.event_array_key] is None:
         server_array = default_event_array(ctx.slot_data)
     else:
-        server_array = list(ctx.stored_data["EVENT_ARRAY"])
+        server_array = list(ctx.stored_data[ctx.event_array_key])
 
     ctx.game_interface.clear_event_log(bytes(server_array))
 
@@ -142,9 +142,9 @@ def sync_foundry_door(ctx: MKSMContext) -> None:
 
 def clear_exp(ctx: MKSMContext) -> None:
     if ctx.game_state != GameState.GAMEPLAY:
-        if "CURRENT_EXP" not in ctx.stored_data:
+        if ctx.current_exp_key not in ctx.stored_data:
             return  # haven't heard back from the server yet - don't zero it on a guess
-        ctx.game_interface.set_exp(ctx.stored_data["CURRENT_EXP"] or 0)
+        ctx.game_interface.set_exp(ctx.stored_data[ctx.current_exp_key] or 0)
 
 
 async def update_events_in_server(ctx: MKSMContext) -> None:
@@ -155,7 +155,7 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
     current_area = ctx.game_interface.get_current_area()
 
     events = chunk_events(current_events)
-    server_array = ctx.stored_data.get("EVENT_ARRAY") or []
+    server_array = ctx.stored_data.get(ctx.event_array_key) or []
 
     # removing current room's events from the end of the array while not currently saving the game
     if not ctx.game_interface.is_currently_saving():
@@ -168,7 +168,7 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
         return
 
     await ctx.send_msgs([{"cmd": "Set",
-                          "key": "EVENT_ARRAY",
+                          "key": ctx.event_array_key,
                           "operations": [
                               {
                                   "operation": "replace",
@@ -183,7 +183,7 @@ async def update_exp_in_server(ctx: MKSMContext) -> None:
         return
 
     current_exp = ctx.game_interface.get_current_exp()
-    server_exp = ctx.stored_data.get("CURRENT_EXP") or 0
+    server_exp = ctx.stored_data.get(ctx.current_exp_key) or 0
 
     if current_exp == 0 and server_exp > 0:
         # spending exp on upgrades legitimately lowers it, so a drop alone isn't suspicious -
@@ -196,7 +196,7 @@ async def update_exp_in_server(ctx: MKSMContext) -> None:
         return
 
     await ctx.send_msgs([{"cmd": "Set",
-                          "key": "CURRENT_EXP",
+                          "key": ctx.current_exp_key,
                           "operations": [
                               {
                                   "operation": "replace",
@@ -462,23 +462,28 @@ async def check_death(ctx: MKSMContext) -> None:
 
 
 async def set_exp_items(ctx: MKSMContext) -> None:
-    if ctx.game_state != GameState.GAMEPLAY or "EXP_ITEMS_GIVEN" not in ctx.stored_data:
+    if ctx.game_state != GameState.GAMEPLAY or ctx.exp_items_given_key not in ctx.stored_data:
         return
 
     exp_items = sum(item.item == ITEM_NAME_TO_ID[f"{FILLER_EXP} EXP"] for item in ctx.items_received)
     # stored_data is the cross-restart source of truth; ctx.exp_items_given is an
     # optimistic same-session cache so we don't re-grant while a Set is still in flight.
-    exp_items_given = max(ctx.stored_data.get("EXP_ITEMS_GIVEN") or 0, ctx.exp_items_given)
+    exp_items_given = max(ctx.stored_data.get(ctx.exp_items_given_key) or 0, ctx.exp_items_given)
 
     if exp_items == exp_items_given:
         return
 
     delta = exp_items - exp_items_given
+
+    if delta <= 0:
+        ctx.exp_items_given = exp_items
+        return
+
     ctx.game_interface.add_exp(delta * FILLER_EXP)
     ctx.exp_items_given = exp_items
 
     await ctx.send_msgs([{"cmd": "Set",
-                          "key": "EXP_ITEMS_GIVEN",
+                          "key": ctx.exp_items_given_key,
                           "operations": [
                               {
                                   "operation": "replace",
