@@ -77,7 +77,6 @@ class GameInterface:
             self.logger.info("Connected to PCSX2 Emulator")
         try:
             game_id = self.pcsx2_interface.get_game_id()
-            print(f"game_id: {game_id!r}")
             # The first read of the address will be null if the client is faster than the emulator
             self.current_game = None
             if game_id in ADDRESSES.keys():
