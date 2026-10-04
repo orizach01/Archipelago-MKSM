@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
-from Options import Choice, PerGameCommonOptions, Range, DefaultOnToggle
-from worlds.ladx.Options import DefaultOffToggle
+from Options import Choice, PerGameCommonOptions, Range, DefaultOnToggle, Toggle
 
 
 class Character(Choice):
@@ -91,7 +90,7 @@ class Fatalitysanity(DefaultOnToggle):
     display_name = "Fatalitysanity"
 
 
-class SkipTutorial(DefaultOffToggle):
+class SkipTutorial(Toggle):
     """
     Turn this option on to skip the turotials in Goro's Lair.
     Irrelevant when Wu-Shi start is on.
@@ -99,7 +98,7 @@ class SkipTutorial(DefaultOffToggle):
     display_name = "Skip Tutorial"
 
 
-class WuShiStart(DefaultOffToggle):
+class WuShiStart(Toggle):
     """
     If on, when pressing new game in the main menu, the game will start in Wu-Shi instead of Goro's Lair.
     You can get to Goro's Lair from Wu-Shi after getting the fist of ruin ability.
