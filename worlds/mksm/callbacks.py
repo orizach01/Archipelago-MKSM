@@ -435,9 +435,6 @@ async def check_completed_game(ctx: MKSMContext):
     if boss_goal >= BossGoal.option_main_and_secret_bosses:
         required_boss_locations += SECRET_BOSS_LOCATIONS
 
-    # no_bosses leaves this empty on purpose, and all() of nothing is True - the goal is
-    # then Red Koins alone. generate_early rejects the combination where both halves are
-    # switched off, so an empty list here can never mean "no goal at all".
     bosses_defeated = all(LOCATION_NAME_TO_ID[name] in ctx.checked_locations for name in required_boss_locations)
 
     if current >= needed and bosses_defeated:

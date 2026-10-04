@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from BaseClasses import Location, Region, LocationProgressType
 from .items import MKSMItem
-from .options import Character
+from .options import Character, BossGoal
 from .consts import CHARACTER_PURCHASE_AMOUNTS
 
 if TYPE_CHECKING:
@@ -285,77 +285,80 @@ def create_event_locations(world: MKSMWorld) -> None:
     netherrealm: Region = world.get_region("Netherrealm")
     foundry: Region = world.get_region("Foundry")
 
-    wu_shi_ermac.add_event(
-        location_name="Ermac defeated event",
-        item_name="Ermac defeated item",
-        location_type=MKSMLocation,
-        item_type=MKSMItem,
-        show_in_spoiler=False
-    )
+    if world.options.boss_goal >= BossGoal.option_shao_kahn_only:
+        foundry.add_event(
+            location_name="Shao Kahn defeated event",
+            item_name="Shao Kahn defeated item",
+            location_type=MKSMLocation,
+            item_type=MKSMItem,
+            show_in_spoiler=False
+        )
 
-    monastery_kitana.add_event(
-        location_name="Kitana defeated event",
-        item_name="Kitana defeated item",
-        location_type=MKSMLocation,
-        item_type=MKSMItem,
-        show_in_spoiler=False
-    )
+    if world.options.boss_goal >= BossGoal.option_main_bosses:
+        monastery_kitana.add_event(
+            location_name="Kitana defeated event",
+            item_name="Kitana defeated item",
+            location_type=MKSMLocation,
+            item_type=MKSMItem,
+            show_in_spoiler=False
+        )
 
-    forest_reptile.add_event(
-        location_name="Reptile defeated event",
-        item_name="Reptile defeated item",
-        location_type=MKSMLocation,
-        item_type=MKSMItem,
-        show_in_spoiler=False
-    )
+        forest_reptile.add_event(
+            location_name="Reptile defeated event",
+            item_name="Reptile defeated item",
+            location_type=MKSMLocation,
+            item_type=MKSMItem,
+            show_in_spoiler=False
+        )
 
-    forest_bridges.add_event(
-        location_name="Mileena defeated event",
-        item_name="Mileena defeated item",
-        location_type=MKSMLocation,
-        item_type=MKSMItem,
-        show_in_spoiler=False
-    )
+        tombs_baraka.add_event(
+            location_name="Baraka defeated event",
+            item_name="Baraka defeated item",
+            location_type=MKSMLocation,
+            item_type=MKSMItem,
+            show_in_spoiler=False
 
-    tombs_baraka.add_event(
-        location_name="Baraka defeated event",
-        item_name="Baraka defeated item",
-        location_type=MKSMLocation,
-        item_type=MKSMItem,
-        show_in_spoiler=False
+        )
 
-    )
+        wasteland_3.add_event(
+            location_name="Goro defeated event",
+            item_name="Goro defeated item",
+            location_type=MKSMLocation,
+            item_type=MKSMItem,
+            show_in_spoiler=False
 
-    wasteland_3.add_event(
-        location_name="Goro defeated event",
-        item_name="Goro defeated item",
-        location_type=MKSMLocation,
-        item_type=MKSMItem,
-        show_in_spoiler=False
+        )
 
-    )
+        netherrealm.add_event(
+            location_name="Scorpion defeated event",
+            item_name="Scorpion defeated item",
+            location_type=MKSMLocation,
+            item_type=MKSMItem,
+            show_in_spoiler=False
 
-    netherrealm.add_event(
-        location_name="Scorpion defeated event",
-        item_name="Scorpion defeated item",
-        location_type=MKSMLocation,
-        item_type=MKSMItem,
-        show_in_spoiler=False
+        )
 
-    )
+    if world.options.boss_goal >= BossGoal.option_main_and_secret_bosses:
+        wu_shi_ermac.add_event(
+            location_name="Ermac defeated event",
+            item_name="Ermac defeated item",
+            location_type=MKSMLocation,
+            item_type=MKSMItem,
+            show_in_spoiler=False
+        )
 
-    foundry.add_event(
-        location_name="Shao Kahn defeated event",
-        item_name="Shao Kahn defeated item",
-        location_type=MKSMLocation,
-        item_type=MKSMItem,
-        show_in_spoiler=False
-    )
+        forest_bridges.add_event(
+            location_name="Mileena defeated event",
+            item_name="Mileena defeated item",
+            location_type=MKSMLocation,
+            item_type=MKSMItem,
+            show_in_spoiler=False
+        )
 
-    foundry.add_event(
-        location_name="Kano defeated event",
-        item_name="Kano defeated item",
-        location_type=MKSMLocation,
-        item_type=MKSMItem,
-        show_in_spoiler=False
-    )
+        foundry.add_event(
+            location_name="Kano defeated event",
+            item_name="Kano defeated item",
+            location_type=MKSMLocation,
+            item_type=MKSMItem,
+            show_in_spoiler=False
+        )
