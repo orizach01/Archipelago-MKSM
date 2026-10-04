@@ -295,7 +295,7 @@ def create_event_locations(world: MKSMWorld) -> None:
             show_in_spoiler=False
         )
 
-    if world.options.boss_goal >= BossGoal.option_main_bosses:
+    if world.options.boss_goal >= BossGoal.option_main_bosses or not world.options.randomize_tournament_victories:
         monastery_kitana.add_event(
             location_name="Kitana defeated event",
             item_name="Kitana defeated item",

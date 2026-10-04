@@ -46,13 +46,9 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO traps
     # TODO open co op doors from start
     # TODO smoke missions
-    # TODO mileena boss is bugged, check which events are needed to not bug her -> update: need to restart game to fix
-    # TODO add shopsanity option?
-    # TODO make goals a toggle and error pre generation when randomizing goals
     # TODO find reptile beaten flag and set it to 1 to get brutality red koin
     # TODO group locations
     # TODO group options
-    # TODO make tournament victory foundry door optional, have a way to open foundry door if beaten all bosses
     # TODO maybe add a special mana upgrade item?
 
     if ap_connected and ctx.slot_data is not None:
@@ -104,24 +100,15 @@ def clear_events(ctx: MKSMContext):
 
 
 def sync_foundry_door(ctx: MKSMContext) -> None:
-    """Gate the foundry door on Tournament victories instead of real medallions.
+    if ctx.slot_data["randomize_tournament_victories"]:
+        victories = sum(item.item == ITEM_NAME_TO_ID["Tournament victory"]
+                        for item in ctx.items_received)
 
-    Below the threshold we hold FOUNDRY_DOOR_FLAG down, which keeps the game's medallion
-    count under five so the portal cutscene never fires. At or above it we inject the
-    door-opening event.
+        should_be_closed = victories < TOURNAMENT_VICTORY_AMOUNT
+    else:
+        should_be_closed = not all(LOCATION_NAME_TO_ID[name] in ctx.checked_locations for name in MAIN_BOSS_LOCATIONS)
 
-    Note the asymmetry: we suppress with a memory write but open with an event. Stripping
-    the door events does not work in the other direction, because 0x3e doubles as the
-    cutscene's "already played" marker - deleting it made the cutscene replay on every
-    portal transit, reopening the door each time, and removing the record can't close a
-    door the cutscene has already opened in the world."""
-    victories = sum(item.item == ITEM_NAME_TO_ID["Tournament victory"]
-                    for item in ctx.items_received)
-
-    if victories < TOURNAMENT_VICTORY_AMOUNT:
-        # Held down in every game state, not just gameplay: the cutscene condition is
-        # evaluated on an area transition, and a tick boundary shouldn't get to decide
-        # whether the door opens.
+    if should_be_closed:
         ctx.game_interface.set_foundry_door_flag(0)
         return
 
@@ -140,7 +127,8 @@ def sync_foundry_door(ctx: MKSMContext) -> None:
 def clear_exp(ctx: MKSMContext) -> None:
     if ctx.game_state != GameState.GAMEPLAY:
         if ctx.current_exp_key not in ctx.stored_data:
-            return  # haven't heard back from the server yet - don't zero it on a guess
+            # current_exp not updated on the server yet
+            return
         ctx.game_interface.set_exp(ctx.stored_data[ctx.current_exp_key] or 0)
 
 
@@ -403,6 +391,9 @@ def update_koin_counter(ctx):
 
 
 def update_tournament_victories_counter(ctx: MKSMContext):
+    if not ctx.slot_data["randomize_tournament_victories"]:
+        return
+
     current = sum(item.item == ITEM_NAME_TO_ID["Tournament victory"] for item in ctx.items_received)
 
     ctx.game_interface.set_tournament_string(current)

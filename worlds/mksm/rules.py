@@ -6,7 +6,7 @@ from rule_builder.options import OptionFilter
 from rule_builder.rules import Has, Rule, HasFromListUnique, AtLeast, CanReachRegion
 from .consts import TOURNAMENT_VICTORY_AMOUNT
 from .locations import FINISHING_MOVES_LOCATIONS
-from .options import BossGoal, Shopsanity
+from .options import BossGoal, Shopsanity, RandomizeTournamentVictories
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -36,7 +36,13 @@ MILEENA = Has("Mileena defeated item")
 KANO = Has("Kano defeated item")
 SHAO_KAHN = Has("Shao Kahn defeated item")
 
-FOUNDRY_RULE = Has("Tournament victory", count=TOURNAMENT_VICTORY_AMOUNT) & WALL_CLIMB & WALL_RUN & DOUBLE_JUMP
+TOURNAMENT_VICTORY_RULE = Has("Tournament victory",
+                              count=TOURNAMENT_VICTORY_AMOUNT,
+                              options=[OptionFilter(RandomizeTournamentVictories, True)])
+
+BOSSES_RULE = KITANA & REPTILE & BARAKA & GORO & SCORPION & OptionFilter(RandomizeTournamentVictories, False)
+
+FOUNDRY_RULE = (TOURNAMENT_VICTORY_RULE | BOSSES_RULE) & (WALL_CLIMB & WALL_RUN & DOUBLE_JUMP)
 
 
 def set_all_rules(world: MKSMWorld) -> None:

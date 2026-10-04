@@ -113,6 +113,12 @@ class WuShiStart(Toggle):
     """
     display_name = "Wu-Shi Academy start"
 
+class RandomizeTournamentVictories(DefaultOnToggle):
+    """
+    If on, shuffles 5 tournament victories in the item pool, all 5 are required to open the door to the foundry.
+    when off, beating all 5 main bosses is required to open the foundry door.
+    """
+    display_name = "Randomize tournament victories"
 
 @dataclass
 class MKSMOptions(PerGameCommonOptions):
@@ -123,3 +129,4 @@ class MKSMOptions(PerGameCommonOptions):
     shopsanity: Shopsanity
     wu_shi_start: WuShiStart
     skip_tutorial: SkipTutorial
+    randomize_tournament_victories: RandomizeTournamentVictories

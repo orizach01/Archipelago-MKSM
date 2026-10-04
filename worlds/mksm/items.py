@@ -93,7 +93,9 @@ def create_all_items(world: MKSMWorld) -> None:
         itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2)]
 
     itempool += [world.create_item("Health upgrade") for _ in range(HEALTH_UPGRADE_AMOUNT)]
-    itempool += [world.create_item("Tournament victory") for _ in range(TOURNAMENT_VICTORY_AMOUNT)]
+
+    if world.options.randomize_tournament_victories:
+        itempool += [world.create_item("Tournament victory") for _ in range(TOURNAMENT_VICTORY_AMOUNT)]
 
     itempool += [world.create_item("Blood bar") for _ in range(BLOOD_BAR_AMOUNT)]
 

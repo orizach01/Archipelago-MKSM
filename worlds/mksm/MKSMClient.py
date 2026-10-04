@@ -38,7 +38,7 @@ TICK_INTERVAL = 0.01  # seconds between full game_watcher passes
 MAX_QUEUED_MESSAGES = 20  # cap on the in-game ticker backlog
 WAITING_FOR_SERVER = "Waiting for player to connect to server"
 REQUIRED_SLOT_DATA = ("character", "red_koin_amount", "red_koin_need_percent", "boss_goal",
-                      "fatalitysanity", "shopsanity", "wu_shi_start", "skip_tutorial")
+                      "fatalitysanity", "shopsanity", "wu_shi_start", "skip_tutorial", "randomize_tournament_victories")
 
 
 class MKSMCommandProcessor(ClientCommandProcessor):
