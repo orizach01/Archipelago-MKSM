@@ -52,6 +52,8 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO find reptile beaten flag and set it to 1 to get brutality red koin
     # TODO group locations
     # TODO group options
+    # TODO make tournament victory foundry door optional, have a way to open foundry door if beaten all bosses
+    # TODO have wasteland wallrun room be pre completed with portal to dead pool open
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()

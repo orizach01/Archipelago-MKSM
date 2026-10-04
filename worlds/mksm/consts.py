@@ -248,8 +248,6 @@ EVENTS_TO_LOCATION_NAME = {
     _make_event(0xc3, 0x3a): "EM: Kitana Mileena and Jade defeated",
     _make_event(0xc3, 0x3e): "EM: Fist of Ruin obtained",
     _make_event(0x48, 0x06): "F: Kano defeated",
-    _make_event(0x49, 0x06): "F: Shao Kahn defeated",  # TODO never triggered lol
-
 }
 
 # events that we want to automatically insert into every new run to avoid softlocks
@@ -496,16 +494,7 @@ CHARACTER_PURCHASE_AMOUNTS |= {
 
 HEALTH_UPGRADE_AMOUNT = 4
 
-CHARACTER_BLOOD_BAR_AMOUNT = {
-    Character.option_liu_kang: 3,
-    Character.option_kung_lao: 3,
-    Character.option_sub_zero: 3,
-    Character.option_scorpion: 3,
-    Character.option_baraka: 1,
-    Character.option_kitana: 1,
-    Character.option_reptile: 1,
-    Character.option_johnny_cage: 1,
-}
+BLOOD_BAR_AMOUNT = 3
 
 SAVING_ANIMATION = 0xF
 ABILITY_ANIMATION = 0x10

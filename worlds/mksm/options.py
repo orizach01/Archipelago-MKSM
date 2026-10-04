@@ -43,13 +43,13 @@ class Character(Choice):
 
 class RedKoinPercent(Range):
     """
-    The randomizer tries to fill the item pool with 60 Red Koin items which are then randomized around the multiworld.
-    There may be less than 60 if there aren't enough locations in the world.
-    To complete the goal you need to both beat the boss goal and have a set number of Red Koins.
-    This option determines what % of all the available Red Koins in the pool is needed.
-    0 means the goal will be beating the boss goal only.
-    100 means requiring to get ALL 60 Red Koins AND beating the boss goal.
-    80 (default) means you need to get at least 80% of all Red Koins AND beat the boss goal to win.
+    There are 60 Red Koins in the item pool.
+    Choose what percent of the 60 Red Koins are needed for goal.
+
+    0 - the goal will be beating the boss goal only, will turn Red Koins to filler.
+    80 (default) - get at least 80% of all Red Koins AND beat the boss goal to win.
+    100 - get ALL 60 Red Koins AND beat the boss goal.
+
     There is a tracker in the pause menu that shows: current amount / needed for goal / total in the multiworld.
     """
     display_name = "Red Koin goal percent"
@@ -61,20 +61,18 @@ class RedKoinPercent(Range):
 
 class BossGoal(Choice):
     """
-    What bosses are needed for goal completion.
+    What bosses are needed for goal.
     The goal also includes getting enough Red Koins, set in the red_koin_need_percent option.
-    no_bosses: no bosses at all are needed - the goal is Red Koins only.
-    shao_kahn_only (default): only the final boss of the game is needed for the goal.
-    main_bosses: all main bosses (Kitana, Reptile, Baraka, Goro and Scorpion) and the final boss.
-    main_and_secret_bosses: all previously mentioned bosses and all secret bosses (Ermac, Mileena and Kano).
-    Setting this to no_bosses requires red_koin_need_percent to be above 0, since otherwise
-    there would be nothing left to complete.
+
+    no_bosses - no bosses at all are needed, the goal is Red Koins only.
+    shao_kahn_only (default) - only the final boss of the game is needed for the goal.
+    main_bosses - all main bosses (Kitana, Reptile, Baraka, Goro and Scorpion) and the final boss.
+    main_and_secret_bosses - all previously mentioned bosses and all secret bosses (Ermac, Mileena and Kano).
+
+    Setting this to no_bosses requires red_koin_need_percent to be above 0.
     """
     display_name = "Boss Goal"
 
-    # -1 rather than shifting everything up by one, so the ordering still reads as "how
-    # much boss content", and every `>=` comparison in rules.py and callbacks.py keeps
-    # working unchanged - no_bosses simply falls below all of them.
     option_no_bosses = -1
     option_shao_kahn_only = 0
     option_main_bosses = 1
