@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from rule_builder.rules import Has, Rule, HasFromListUnique
+from rule_builder.rules import Has, Rule, HasFromListUnique, AtLeast, CanReachRegion
 from .consts import TOURNAMENT_VICTORY_AMOUNT
 from .locations import FINISHING_MOVES_LOCATIONS
 from .options import BossGoal
@@ -80,10 +80,13 @@ def set_purchase_rules(world: MKSMWorld) -> None:
                 loc = world.get_location(loc_name)
             except KeyError:
                 continue
-            world.set_rule(loc, HasFromListUnique(
-                "Kitana defeated item", "Reptile defeated item", "Baraka defeated item",
-                "Scorpion defeated item", "Goro defeated item",
-                count=tier
+            world.set_rule(loc, AtLeast(
+                tier,
+                CanReachRegion("Monastery"),
+                CanReachRegion("Forest"),
+                CanReachRegion("Tombs"),
+                CanReachRegion("Netherrealm"),
+                CanReachRegion("Wasteland"),
             ))
 
 
