@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from NetUtils import ClientStatus
 from .consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
     FOUNDRY_DOOR_OPEN_EVENT, TOURNAMENT_VICTORY_AMOUNT, \
-    FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events
+    FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events, MAIN_MENU_NEW_GAME_OPTION, WU_SHI_START_AREA
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 from .options import BossGoal
@@ -44,11 +44,14 @@ if TYPE_CHECKING:
 async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
-    # TODO check portal start area open world style -> update: address in code notes for pause menu area
     # TODO open co op doors from start
     # TODO smoke missions
     # TODO mileena boss is bugged, check which events are needed to not bug her -> update: need to restart game to fix
     # TODO add shopsanity option?
+    # TODO make goals a toggle and error pre generation when randomizing goals
+    # TODO find reptile beaten flag and set it to 1 to get brutality red koin
+    # TODO group locations
+    # TODO group options
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
@@ -61,6 +64,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         sync_foundry_door(ctx)
         clear_exp(ctx)
 
+        set_wushi_start(ctx)
         set_character(ctx)
         set_move_upgrades(ctx)
         set_abilities(ctx)
@@ -90,10 +94,10 @@ def clear_events(ctx: MKSMContext):
         return
 
     if not ctx.slot_data or "character" not in ctx.slot_data:
-        return  # haven't heard back from the server yet - don't guess
+        return
 
     if "EVENT_ARRAY" not in ctx.stored_data or ctx.stored_data["EVENT_ARRAY"] is None:
-        server_array = default_event_array(ctx.slot_data['character'])
+        server_array = default_event_array(ctx.slot_data)
     else:
         server_array = list(ctx.stored_data["EVENT_ARRAY"])
 
@@ -235,25 +239,27 @@ async def check_red_koins(ctx: MKSMContext) -> None:
 
 
 async def check_move_upgrades(ctx: MKSMContext) -> None:
-    if ctx.is_paused:
-        current_upgrades = ctx.game_interface.get_upgrade_amounts()
-        square = min(current_upgrades.square, 4)
-        triangle = min(current_upgrades.triangle, 4)
-        circle = min(current_upgrades.circle, 5)
-        r2 = min(current_upgrades.r2, 5)
+    if not ctx.is_paused:
+        return
 
-        checked_names = set()
-        checked_names |= {f"Purchase upgrade - Square {i}" for i in range(2, square + 1)}
-        checked_names |= {f"Purchase upgrade - Triangle {i}" for i in range(2, triangle + 1)}
-        checked_names |= {f"Purchase upgrade - Circle {i}" for i in range(2, circle + 1)}
-        checked_names |= {f"Purchase upgrade - R2 {i}" for i in range(2, r2 + 1)}
-        checked_names |= {f"Purchase combo {i}" for i in range(1, current_upgrades.combo + 1)}
+    current_upgrades = ctx.game_interface.get_upgrade_amounts()
+    square = min(current_upgrades.square, 4)
+    triangle = min(current_upgrades.triangle, 4)
+    circle = min(current_upgrades.circle, 5)
+    r2 = min(current_upgrades.r2, 5)
 
-        if not checked_names:
-            return
+    checked_names = set()
+    checked_names |= {f"Purchase upgrade - Square {i}" for i in range(2, square + 1)}
+    checked_names |= {f"Purchase upgrade - Triangle {i}" for i in range(2, triangle + 1)}
+    checked_names |= {f"Purchase upgrade - Circle {i}" for i in range(2, circle + 1)}
+    checked_names |= {f"Purchase upgrade - R2 {i}" for i in range(2, r2 + 1)}
+    checked_names |= {f"Purchase combo {i}" for i in range(1, current_upgrades.combo + 1)}
 
-        location_ids = {LOCATION_NAME_TO_ID[name] for name in checked_names}
-        await ctx.check_locations(location_ids)
+    if not checked_names:
+        return
+
+    location_ids = {LOCATION_NAME_TO_ID[name] for name in checked_names}
+    await ctx.check_locations(location_ids)
 
 
 # how many purchase tiers exist per move, i.e. range(2, stop) over the location names
@@ -511,3 +517,14 @@ def force_ui(ctx: MKSMContext):
 async def check_final_boss(ctx: MKSMContext):
     if ctx.game_state == GameState.GAME_BEATEN_FMV and ctx.prev_state == GameState.GAMEPLAY:
         await ctx.check_locations([LOCATION_NAME_TO_ID[FINAL_BOSS_LOCATION]])
+
+
+def set_wushi_start(ctx: MKSMContext):
+    if not ctx.slot_data or not ctx.slot_data.get("wu_shi_start") or not ctx.game_state == GameState.MAIN_MENU:
+        return
+
+    option = ctx.game_interface.main_menu_highlighted_option()
+    if option != MAIN_MENU_NEW_GAME_OPTION:
+        return
+
+    ctx.game_interface.set_starting_area(WU_SHI_START_AREA)

@@ -20,6 +20,7 @@ FIST_OF_RUIN: Rule = Has("Fist of Ruin")
 FATALITY: Rule = Has("Blood bar", count=1)
 MULTALITY: Rule = Has("Blood bar", count=2)
 BRUTALITY: Rule = Has("Blood bar", count=3)
+LAUNCHING_THROW = Has("R2 special upgrade", count=2)
 
 KITANA = Has("Kitana defeated item")
 REPTILE = Has("Reptile defeated item")
@@ -87,7 +88,7 @@ def set_purchase_rules(world: MKSMWorld) -> None:
 
 
 def set_all_location_rules(world: MKSMWorld) -> None:
-    world.set_rule(world.get_location("GL: koin above the doorway"), DOUBLE_JUMP | WALL_JUMP)
+    world.set_rule(world.get_location("GL: koin above the doorway"), DOUBLE_JUMP | WALL_JUMP)  # TODO check both
     world.set_rule(world.get_location("GL: koin above the breakable door"), DOUBLE_JUMP | WALL_JUMP)
     world.set_rule(world.get_location("WSA: koin after the tree branch swing"), SWING | DOUBLE_JUMP)
     world.set_rule(
@@ -109,9 +110,10 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     )
     world.set_rule(world.get_location("ST: koin above Baraka's entrance"), WALL_RUN & DOUBLE_JUMP)
     world.set_rule(world.get_location("ST: koin from the broken statue"), FIST_OF_RUIN)
-    world.set_rule(world.get_location("ST: koin above the broken statue"), FIST_OF_RUIN)
+    world.set_rule(world.get_location("ST: koin above the broken statue"), FIST_OF_RUIN & (DOUBLE_JUMP | LONG_JUMP))
     world.set_rule(world.get_location("ST: koin from a high button in the rolling spikes room"), DOUBLE_JUMP)
     world.set_rule(world.get_location("ST: koin above the ceiling in the room with the hooks"), DOUBLE_JUMP)
+    world.set_rule(world.get_location("ST: koin from launching a tarkata on the flying bird"), LAUNCHING_THROW)
     world.set_rule(world.get_location("ST: koin behind statue in the falling spike trap room"), FIST_OF_RUIN)
     world.set_rule(
         world.get_location("ST: koin above broken statue in the falling spike trap room"),
@@ -153,16 +155,22 @@ def connect_regions(world: MKSMWorld) -> None:
     netherrealm = world.get_region("Netherrealm")
     foundry = world.get_region("Foundry")
 
-    menu.connect(goros_lair_1)
+    if world.options.wu_shi_start:
+        menu.connect(wu_shi)
+    else:
+        menu.connect(goros_lair_1)
 
     goros_lair_1.connect(goros_lair_boss)
     goros_lair_1.connect(goros_lair_2, rule=LONG_JUMP | DOUBLE_JUMP)
     goros_lair_2.connect(wu_shi)
+    goros_lair_2.connect(goros_lair_boss)
+    goros_lair_boss.connect(goros_lair_1, rule=LONG_JUMP | DOUBLE_JUMP)
 
     wu_shi.connect(wu_shi_ermac, rule=FIST_OF_RUIN & SWING)
     wu_shi.connect(wu_shi_fire)
     wu_shi_fire.connect(wu_shi_wallrun, rule=FIST_OF_RUIN)
     wu_shi.connect(portal_1)
+    wu_shi.connect(goros_lair_2, rule=FIST_OF_RUIN)
 
     portal_1.connect(wu_shi)
     portal_1.connect(portal_2)
@@ -171,7 +179,7 @@ def connect_regions(world: MKSMWorld) -> None:
 
     portal_1.connect(forest, rule=FIST_OF_RUIN)
     forest.connect(forest_bridges, rule=SWING & WALL_CLIMB)
-    forest.connect(forest_reptile)
+    forest.connect(forest_reptile, rule=LONG_JUMP | DOUBLE_JUMP)
 
     portal_2.connect(wasteland_1, rule=WALL_CLIMB & (WALL_JUMP | (WALL_RUN & DOUBLE_JUMP)))
     wasteland_1.connect(wasteland_2, rule=FIST_OF_RUIN)

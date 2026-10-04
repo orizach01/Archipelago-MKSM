@@ -116,12 +116,12 @@ class MKSMCommandProcessor(ClientCommandProcessor):
         if not ctx.slot_data or "character" not in ctx.slot_data:
             return False  # haven't heard back from the server yet - don't guess
 
-        if not current_events or current_events == default_event_array(ctx.slot_data['character']):
+        if not current_events or current_events == default_event_array(ctx.slot_data):
             self.output("no event to remove")
             return True
 
         events = chunk_events(current_events)
-        default_events = set(chunk_events(default_event_array(ctx.slot_data['character'])))
+        default_events = set(chunk_events(default_event_array(ctx.slot_data)))
         last_room = events[-1][0]
         self.output(f"Removing non-default events from last room: {hex(last_room)}")
         remaining_events = [
@@ -158,7 +158,7 @@ class MKSMCommandProcessor(ClientCommandProcessor):
         current_events = list(ctx.stored_data.get("EVENT_ARRAY") or [])
         existing = set(chunk_events(current_events))
 
-        missing_events = [event for event in chunk_events(default_event_array(ctx.slot_data['character'])) if
+        missing_events = [event for event in chunk_events(default_event_array(ctx.slot_data)) if
                           event not in existing]
         new_array = current_events + flatten_events(missing_events)
 

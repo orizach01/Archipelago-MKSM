@@ -440,3 +440,12 @@ class MKSMInterface(GameInterface):
         # TODO check for other cutscenes maybe?
         return (self.get_current_animation() in ANIMATIONS_TO_LOCATION_NAME.keys() or
                 self.get_current_animation() == ABILITY_ANIMATION)
+
+    def main_menu_highlighted_option(self) -> int:
+        addr = self.addresses.get("MAIN_MENU_OPTION")
+        option = self._read32(addr)
+        return option
+
+    def set_starting_area(self, area):
+        addr = self.addresses.get("STARTING_AREA")
+        self._write32(addr, area)

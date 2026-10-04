@@ -218,6 +218,9 @@ ADDRESSES = {
         # changes nothing) and not in the ability flags, and the door-opening events can't
         # be stripped because 0x3e doubles as the cutscene's "already played" marker.
         "FOUNDRY_DOOR_FLAG": 0xc2e04c,
+
+        "STARTING_AREA": 0x5e2fc4,
+        "MAIN_MENU_OPTION": 0x5ca2ac,
     }
 }
 
@@ -307,8 +310,66 @@ SHOOTING_KOIN_EVENTS = [
     *_make_event(0x43, 0x2d),  # foundry            (foundry map 5 -> 4)
 ]
 
+GOROS_LAIR_SKIP_EVENTS = [
+    *_make_event(0x60, 0x42),
+    *_make_event(0x60, 0x44),
+    *_make_event(0x60, 0x50),
+    *_make_event(0x60, 0xad),
+    *_make_event(0x60, 0x49),
+    *_make_event(0x60, 0x00),
+    *_make_event(0x60, 0xaf),
+    *_make_event(0x60, 0xa8),
+    *_make_event(0x60, 0x4d),
+    *_make_event(0x60, 0x3a),
+    *_make_event(0x60, 0x4b),
+    *_make_event(0x60, 0x11),
+    *_make_event(0x60, 0x12),
+    *_make_event(0x60, 0x4c),
+    *_make_event(0x60, 0x01),
+    *_make_event(0x60, 0x21),
+    *_make_event(0x60, 0x22),
+    *_make_event(0x60, 0xa0),
+    *_make_event(0x60, 0x58),
+    *_make_event(0x60, 0x6d),
+    *_make_event(0x60, 0xc0),
+    *_make_event(0x60, 0x6f),
+    *_make_event(0x60, 0x91),
+    *_make_event(0x60, 0xa1),
+    *_make_event(0x60, 0x53),
+    *_make_event(0x60, 0x6b),
+    *_make_event(0x60, 0x90),
+    *_make_event(0x60, 0xa2),
+    *_make_event(0x60, 0x72),
+    *_make_event(0x60, 0x8f),
+    *_make_event(0x60, 0xa3),
+    *_make_event(0x60, 0x4f),
+    *_make_event(0x60, 0x9f),
+    *_make_event(0x60, 0x8e),
+    *_make_event(0x62, 0x02),
+    *_make_event(0x62, 0x47),
+    *_make_event(0x62, 0x0a),
+    *_make_event(0x62, 0x3c),
+    *_make_event(0x62, 0x05),
+    *_make_event(0x64, 0x00),
+    *_make_event(0x64, 0x27),
+    *_make_event(0x64, 0x37),
+    *_make_event(0x64, 0x30),
+    *_make_event(0x64, 0x26),
+    *_make_event(0x65, 0x15),
+    *_make_event(0x65, 0x07),
+    *_make_event(0x65, 0x3d),
+    *_make_event(0x65, 0x41),
+    *_make_event(0x65, 0x33),
+    *_make_event(0x65, 0x4b),
+    *_make_event(0x65, 0x2a),
+    *_make_event(0x65, 0x2f),
+]
 
-def default_event_array(character: int):
+
+def default_event_array(slot_data):
+    character = slot_data["character"]
+    wu_shi_start = slot_data["wu_shi_start"]
+    skip_tutorial = slot_data["skip_tutorial"]
     character = Character(character)
     default = _DEFAULT_EVENT_ARRAY.copy()
 
@@ -316,6 +377,8 @@ def default_event_array(character: int):
         default += MOON_KOIN_EVENTS
     if character.is_vs():
         default += SHOOTING_KOIN_EVENTS
+    if wu_shi_start or skip_tutorial:
+        default += GOROS_LAIR_SKIP_EVENTS
 
     return default
 
@@ -453,3 +516,7 @@ ABILITY_ANIMATION = 0x10
 # the player has this many. If the logic's threshold and the client's ever diverged,
 # generation would place items behind a door the client refuses to open.
 TOURNAMENT_VICTORY_AMOUNT = 5
+
+WU_SHI_START_AREA = 0x67
+
+MAIN_MENU_NEW_GAME_OPTION = 0
