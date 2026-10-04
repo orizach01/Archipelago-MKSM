@@ -282,7 +282,6 @@ def create_event_locations(world: MKSMWorld) -> None:
     forest_bridges: Region = world.get_region("Forest - Bridges")
     tombs_baraka: Region = world.get_region("Tombs - Baraka arena")
     wasteland_3: Region = world.get_region("Wasteland 3")
-    dead_pool: Region = world.get_region("Dead Pool")
     netherrealm: Region = world.get_region("Netherrealm")
     foundry: Region = world.get_region("Foundry")
 
@@ -359,13 +358,4 @@ def create_event_locations(world: MKSMWorld) -> None:
         location_type=MKSMLocation,
         item_type=MKSMItem,
         show_in_spoiler=False
-    )
-
-    dead_pool.add_event(
-        location_name="Dead Pool event",
-        item_name="Dead Pool item",
-        location_type=MKSMLocation,
-        item_type=MKSMItem,
-        show_in_spoiler=False
-
     )

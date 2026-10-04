@@ -86,7 +86,7 @@ def set_purchase_rules(world: MKSMWorld) -> None:
                 CanReachRegion("Forest"),
                 CanReachRegion("Tombs"),
                 CanReachRegion("Netherrealm"),
-                CanReachRegion("Wasteland"),
+                CanReachRegion("Wasteland 1"),
             ))
 
 
