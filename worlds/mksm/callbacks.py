@@ -53,7 +53,8 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO group locations
     # TODO group options
     # TODO make tournament victory foundry door optional, have a way to open foundry door if beaten all bosses
-    # TODO have wasteland wallrun room be pre completed with portal to dead pool open
+    # TODO remove event items if not needed for goal
+    # TODO maybe add a special mana upgrade item?
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()

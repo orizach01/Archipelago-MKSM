@@ -184,7 +184,7 @@ def connect_regions(world: MKSMWorld) -> None:
     portal_2.connect(wasteland_1, rule=WALL_CLIMB & (WALL_JUMP | (WALL_RUN & DOUBLE_JUMP)))
     wasteland_1.connect(wasteland_2, rule=FIST_OF_RUIN)
     wasteland_2.connect(wasteland_3, rule=WALL_RUN)
-    wasteland_2.connect(dead_pool, rule=GORO)
+    wasteland_2.connect(dead_pool)
 
     portal_1.connect(tombs, rule=WALL_CLIMB)
     tombs.connect(tombs_baraka, rule=FIST_OF_RUIN)

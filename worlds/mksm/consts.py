@@ -363,6 +363,19 @@ GOROS_LAIR_SKIP_EVENTS = [
     *_make_event(0x65, 0x2f),
 ]
 
+WASTELAND_EVENTS = [
+    # Pre goro
+    *_make_event(0x2e, 0x24),
+    *_make_event(0x2e, 0x12),
+    *_make_event(0x2e, 0x25),
+    *_make_event(0x2e, 0x19),
+    *_make_event(0x2e, 0x1e),
+
+    # Post goro
+    *_make_event(0x2e, 0x1f),
+    *_make_event(0x2e, 0x2e),
+]
+
 
 def default_event_array(slot_data):
     character = slot_data["character"]
@@ -370,6 +383,8 @@ def default_event_array(slot_data):
     skip_tutorial = slot_data["skip_tutorial"]
     character = Character(character)
     default = _DEFAULT_EVENT_ARRAY.copy()
+
+    default += WASTELAND_EVENTS
 
     if not character.can_shoot_moon():
         default += MOON_KOIN_EVENTS
