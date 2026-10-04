@@ -95,9 +95,6 @@ def clear_events(ctx: MKSMContext):
     if ctx.game_state == GameState.GAMEPLAY:
         return
 
-    if not ctx.slot_data or "character" not in ctx.slot_data:
-        return
-
     if ctx.event_array_key not in ctx.stored_data or ctx.stored_data[ctx.event_array_key] is None:
         server_array = default_event_array(ctx.slot_data)
     else:
@@ -381,7 +378,7 @@ def set_blood_bar(ctx: MKSMContext):
 
 
 async def check_finishing_moves(ctx: MKSMContext) -> None:
-    if not ctx.slot_data or not ctx.slot_data.get("fatalitysanity"):
+    if not ctx.slot_data["fatalitysanity"]:
         return
 
     animation = ctx.game_interface.get_current_animation()
@@ -394,9 +391,6 @@ async def check_finishing_moves(ctx: MKSMContext) -> None:
 
 
 def update_koin_counter(ctx):
-    if not ctx.slot_data or "red_koin_amount" not in ctx.slot_data or "red_koin_need_percent" not in ctx.slot_data:
-        return  # haven't heard back from the server yet - don't guess
-
     total = ctx.slot_data["red_koin_amount"]
     needed = int(total * ctx.slot_data["red_koin_need_percent"] / 100)
     current = sum(item.item == ITEM_NAME_TO_ID["Red Koin"] for item in ctx.items_received)
@@ -409,19 +403,12 @@ def update_koin_counter(ctx):
 
 
 def update_tournament_victories_counter(ctx: MKSMContext):
-    if not ctx.slot_data or "red_koin_amount" not in ctx.slot_data or "red_koin_need_percent" not in ctx.slot_data:
-        return  # haven't heard back from the server yet - don't guess
-
     current = sum(item.item == ITEM_NAME_TO_ID["Tournament victory"] for item in ctx.items_received)
 
     ctx.game_interface.set_tournament_string(current)
 
 
 async def check_completed_game(ctx: MKSMContext):
-    if not ctx.slot_data or "red_koin_amount" not in ctx.slot_data or "red_koin_need_percent" not in ctx.slot_data \
-            or "boss_goal" not in ctx.slot_data:
-        return  # haven't heard back from the server yet - don't guess
-
     total = ctx.slot_data["red_koin_amount"]
     needed = int(total * ctx.slot_data["red_koin_need_percent"] / 100)
     current = sum(item.item == ITEM_NAME_TO_ID["Red Koin"] for item in ctx.items_received)
@@ -444,9 +431,6 @@ async def check_completed_game(ctx: MKSMContext):
 
 
 def set_character(ctx: MKSMContext) -> None:
-    if not ctx.slot_data or "character" not in ctx.slot_data:
-        return  # haven't heard back from the server yet - don't guess
-
     character_option = ctx.slot_data["character"]
     ctx.game_interface.set_character(character_option)
 
@@ -526,7 +510,7 @@ async def check_final_boss(ctx: MKSMContext):
 
 
 def set_wushi_start(ctx: MKSMContext):
-    if not ctx.slot_data or not ctx.slot_data.get("wu_shi_start") or not ctx.game_state == GameState.MAIN_MENU:
+    if not ctx.slot_data["wu_shi_start"] or ctx.game_state != GameState.MAIN_MENU:
         return
 
     option = ctx.game_interface.main_menu_highlighted_option()
