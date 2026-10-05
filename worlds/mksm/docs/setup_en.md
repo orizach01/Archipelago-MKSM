@@ -16,18 +16,18 @@ an experience customized for their taste, and different players in the same mult
 
 ### Where do I get a YAML file?
 
-You can customize your options by using the built-in *Options Creator* in the Arcipelago launcher.
+You can customize your options by using the built-in *Options Creator* in the Archipelago launcher.
 The *Options Creator* allows customization of all the game's options and hovering over an option explains what it does.
 You can read more about the options [here](en_Mortal%20Kombat%20Shaolin%20Monks.md)
 
-### Configuring PCSX2
+## Configuring PCSX2
 
 Enable PINE in PCSX2
 
 * In PCSX2, under Tools, check Show Advanced Settings.
 * In PCSX2, System -> Settings -> Advanced -> PINE Settings, check Enable and ensure Slot is set to 28011.
 
-### Connect to the MultiServer
+## Connect to the MultiServer
 
 1. Open PCSX2 and load MKSM
 
@@ -38,7 +38,7 @@ Enable PINE in PCSX2
 
 4. Press New Game to start playing
 
-### Notes
+## Notes
 
 * You can only connect to the server while in the main menu.
 * Backup your save if you want, the client removes all collected Red Koins so you can collect them while playing.
