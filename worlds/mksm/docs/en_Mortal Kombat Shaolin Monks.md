@@ -133,7 +133,7 @@ If off, the shop acts like in the vanilla game, special move upgrades and combos
 ### Skip Tutorial
 
 If on, the game skips all the beginning tutorials in Goro's Lair.
-Irerelevent when `Wu-Shi Academy start` is on.
+Irrelevant when `Wu-Shi Academy start` is on.
 
 ### Wu-Shi Academy start
 
@@ -159,7 +159,7 @@ There is a tracker in the pause menu that shows your current tournament victory 
 The vanilla game doesn't include mana upgrades, so here it's an optional feature you can enable.
 
 If on, adds 4 mana upgrade items to the item pool,
-each upgrades increases your max mana by about 25%, meaning that your max mana is doubled after getting all 4 upgrades.
+each upgrade increases your max mana by about 25%, meaning that your max mana is doubled after getting all 4 upgrades.
 
 ## Logic
 
@@ -196,6 +196,7 @@ If `Fatalitysanity` is on, the required amount of Blood bar upgrades is needed t
 
 If `Shopsanity` is on, the logic expects you to be able to reach a certain amount of main bosses before being able to
 buy upgrades
+
 In general, logic expects you to buy upgrades in order, from least expensive to most expensive.
 Pricing and amounts of upgrade varies by character.
 
@@ -242,25 +243,30 @@ Meaning you can always come back to it when you want to go to a new area.
 * You shouldn't load a save file that isn't part of your current run, it can mess with the game progress.
 * Some areas in the game allow you to enter, but not to leave without a required ability,
   it is safe to enter those areas, collect the checks that are there then exit to main menu and load a different save
-  file
-  for example:
+  file.
+
+  For example:
+    * Entering the Oni Warlord boss in Goro's Lair without Long jump means you can't leave the arena,
+      even if you have Double Jump, the jump to get to the top of the room is really hard, 
+      so it's safe to exit to menu and load the save spot from the start of the room, 
+      using Double jump to clear the broken bridge is possible and logic expects you to do it.
     * Entering the Reptile fight without long jump means you're unable to complete the snake sequence.
     * Also entering the Reptile fight without wall climb means you can't leave the arena after the fight, it is safe to
       exit to menu after beating reptile and getting the check for beating him.
     * The area in Wu-Shi Academy where you unlock Wall run, without Wall run you can't leave the area.
+      You can safely enter the area, collect the check, exit to menu and load a save.
     * If you enter the Sub-Zero fight without Fist of Ruin, you won't be able to break the ice wall to enter the next
       room,
       if that happens you can exit to menu and load the previous save file, you will have to fight Sub-Zero again.
 * Sometimes exiting to menu might break some game sequenecs, like exiting to menu after beating Orochi in Soul Tombs
   without returning to the main room and seeing the laser.
-  if you don't return to the main room naturally, the game doesn't spawn the laser to open the Baraka door.
+  If you don't return to the main room naturally, the game doesn't spawn the laser to open the Baraka door.
     * In that case you can manually walk back to the Orochi room, then back to the main room.
 
-The general flow of the run is:
-
+The general flow of the run is this:
 * At the start you press New Game
-* then you can make save files in different spots, always making a new save file and not overwriting old ones.
-* then you can exit to menu and "fast travel" to old save spots.
+* Then you can make save files in different spots, always making a new save file and not overwriting old ones.
+* Then you can exit to menu and "fast travel" to old save spots.
 
 ## What other changes are made to the game?
 
