@@ -50,7 +50,8 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO find reptile beaten flag and set it to 1 to get brutality red koin
     # TODO group locations
     # TODO group options
-    # TODO maybe add a special mana upgrade item?
+    # TODO tweak max mana values so that you can double jump 4 times when maxed and 3 when 2
+    # TODO make docs/setup_en.md
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
