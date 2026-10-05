@@ -113,9 +113,7 @@ class MKSMInterface(GameInterface):
         if game_state != GameState.GAMEPLAY:
             return set()
 
-        koin_addrs = self.addresses.get("RED_KOINS", {})
-        if not koin_addrs:
-            return set()
+        koin_addrs = self.addresses.get("RED_KOINS")
 
         all_addrs = {addr for bits in koin_addrs.values() for addr in bits}
         start, end = min(all_addrs), max(all_addrs)
@@ -145,10 +143,7 @@ class MKSMInterface(GameInterface):
 
     def clear_uncollected_red_koins(self, checked_names: set[str]) -> None:
         """Zero out every red koin's bits in game memory except for the ones in
-        `checked_names`. Used once on connect so a stale save state (leftover
-        bits from before this seed, debug saves, etc.) can't desync from what
-        the AP server currently considers checked, or get reported as a check
-        that never actually happened this run."""
+        `checked_names`."""
         koin_addrs = self.addresses.get("RED_KOINS", {})
         if not koin_addrs:
             return

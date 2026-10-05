@@ -209,10 +209,8 @@ def read_game_state(ctx) -> None:
 
 
 async def sync_red_koins(ctx: MKSMContext) -> None:
-    """One-time sync run the first tick we have both a live game connection and
-    server state: clears every red koin's bits in game memory except for the
-    locations the AP server already considers checked. See
-    MKSMInterface.clear_uncollected_red_koins for why."""
+    """clears every red koin's bits in game memory except for the
+    locations the AP server already considers checked."""
     if ctx.game_state != GameState.GAMEPLAY:
         koin_names = ctx.game_interface.addresses.get("RED_KOINS", {}).keys()
         checked_names = {name for name in koin_names if LOCATION_NAME_TO_ID[name] in ctx.checked_locations}
