@@ -17,7 +17,7 @@ an experience customized for their taste, and different players in the same mult
 ### Where do I get a YAML file?
 
 You can customize your options by using the built-in *Options Creator* in the Arcipelago launcher.
-The *Options Creator* allows customization of all the game's options and hovering over an options explain what it does.
+The *Options Creator* allows customization of all the game's options and hovering over an option explains what it does.
 You can read more about the options [here](en_Mortal%20Kombat%20Shaolin%20Monks.md)
 
 ### Configuring PCSX2
