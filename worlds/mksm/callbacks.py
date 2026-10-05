@@ -51,7 +51,10 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO group locations
     # TODO group options
     # TODO tweak max mana values so that you can double jump 4 times when maxed and 3 when 2
+    # TODO fix combos check in order instead of separate per combo
     # TODO make docs/setup_en.md
+    # TODO add fast wushi start option
+    # TODO test if wall run is enough for scorpion fight
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()

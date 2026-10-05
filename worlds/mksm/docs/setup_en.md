@@ -44,3 +44,4 @@ Enable PINE in PCSX2
 * Backup your save if you want, the client removes all collected Red Koins so you can collect them while playing.
 * Start each run by pressing New Game, don't load save files belonging to a different playthrough.
 * Avoid using save states while playing, they can mess with the client's autosave and location checks.
+* Co-op is untested for now, don't expect it to work.
