@@ -51,7 +51,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO add fast wushi start option
     # TODO option to have special moves start locked if no shopsanity,
     #  maybe if shopsanity is on still make it so you need to unlock the item before buying upgrades to it
-
+    # TODO prevent entering slot name while already in game
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
         current_time = loop.time()
@@ -501,14 +501,11 @@ async def check_final_boss(ctx: MKSMContext):
 
 
 def set_wushi_start(ctx: MKSMContext):
-    if not ctx.slot_data["wu_shi_start"] or ctx.game_state != GameState.MAIN_MENU:
+    if not ctx.slot_data["wu_shi_start"]:
         return
 
-    option = ctx.game_interface.main_menu_highlighted_option()
-    if option != MAIN_MENU_NEW_GAME_OPTION:
-        return
-
-    ctx.game_interface.set_starting_area(WU_SHI_START_AREA)
+    if ctx.game_state == GameState.INTRO_FMV:
+        ctx.game_interface.set_starting_area(WU_SHI_START_AREA)
 
 
 def set_mana_upgrades(ctx: MKSMContext):
