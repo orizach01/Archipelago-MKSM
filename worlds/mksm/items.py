@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from BaseClasses import Item, ItemClassification
-from .consts import CHARACTER_PURCHASE_AMOUNTS, HEALTH_UPGRADE_AMOUNT, CHARACTER_BLOOD_BAR_AMOUNT, FILLER_EXP, \
-    TOURNAMENT_VICTORY_AMOUNT
+from .consts import CHARACTER_PURCHASE_AMOUNTS, HEALTH_UPGRADE_AMOUNT, BLOOD_BAR_AMOUNT, FILLER_EXP, \
+    TOURNAMENT_VICTORY_AMOUNT, MANA_UPGRADE_AMOUNT
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -31,6 +31,7 @@ ITEM_NAME_TO_ID = {
     "Blood bar": 19,
     f"{FILLER_EXP} EXP": 20,
     "Tournament victory": 21,
+    "Mana upgrade": 22,
 }
 
 DEFAULT_ITEM_CLASSIFICATIONS = {
@@ -52,8 +53,9 @@ DEFAULT_ITEM_CLASSIFICATIONS = {
     "Square special upgrade": ItemClassification.useful,
     "Triangle special upgrade": ItemClassification.useful,
     "Circle special upgrade": ItemClassification.useful,
-    "R2 special upgrade": ItemClassification.useful,
+    "R2 special upgrade": ItemClassification.progression_deprioritized_skip_balancing,
     "Health upgrade": ItemClassification.useful,
+    "Mana upgrade": ItemClassification.useful,
     f"{FILLER_EXP} EXP": ItemClassification.filler,
 }
 
@@ -63,10 +65,16 @@ class MKSMItem(Item):
 
 
 def create_item_with_correct_classification(world: MKSMWorld, name: str) -> MKSMItem:
+    if name == "Red Koin" and world.options.red_koin_need_percent == 0:
+        return MKSMItem(name, ItemClassification.filler, ITEM_NAME_TO_ID[name], world.player)
+
     return MKSMItem(name, DEFAULT_ITEM_CLASSIFICATIONS[name], ITEM_NAME_TO_ID[name], world.player)
 
 
 def create_all_items(world: MKSMWorld) -> None:
+    character = world.options.character
+    amounts = CHARACTER_PURCHASE_AMOUNTS[character.value]
+
     itempool: list[Item] = [
         world.create_item("Long Jump"),
         world.create_item("Fist of Ruin"),
@@ -77,23 +85,24 @@ def create_all_items(world: MKSMWorld) -> None:
         world.create_item("Double Jump"),
     ]
 
-    character = world.options.character
+    if world.options.shopsanity:
+        if not character.is_vs():
+            itempool += [world.create_item(f"Combo {i + 1}") for i in range(amounts.combo)]
+            itempool += [world.create_item("Square special upgrade") for _ in range(amounts.square)]
+            itempool += [world.create_item("Triangle special upgrade") for _ in range(amounts.triangle)]
+            itempool += [world.create_item("Circle special upgrade") for _ in range(amounts.circle)]
 
-    amounts = CHARACTER_PURCHASE_AMOUNTS[character.value]
-
-    if not character.is_vs():
-        itempool += [world.create_item(f"Combo {i + 1}") for i in range(amounts.combo)]
-        itempool += [world.create_item("Square special upgrade") for _ in range(amounts.square)]
-        itempool += [world.create_item("Triangle special upgrade") for _ in range(amounts.triangle)]
-        itempool += [world.create_item("Circle special upgrade") for _ in range(amounts.circle)]
-
-    itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2)]
+        itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2)]
 
     itempool += [world.create_item("Health upgrade") for _ in range(HEALTH_UPGRADE_AMOUNT)]
-    itempool += [world.create_item("Tournament victory") for _ in range(TOURNAMENT_VICTORY_AMOUNT)]
 
-    blood_bar_amount = CHARACTER_BLOOD_BAR_AMOUNT[character.value]
-    itempool += [world.create_item("Blood bar") for _ in range(blood_bar_amount)]
+    if world.options.mana_upgrades:
+        itempool += [world.create_item("Mana upgrade") for _ in range(MANA_UPGRADE_AMOUNT)]
+
+    if world.options.randomize_tournament_victories:
+        itempool += [world.create_item("Tournament victory") for _ in range(TOURNAMENT_VICTORY_AMOUNT)]
+
+    itempool += [world.create_item("Blood bar") for _ in range(BLOOD_BAR_AMOUNT)]
 
     number_of_unfilled_locations = len(world.multiworld.get_unfilled_locations(world.player))
     current_count = len(itempool)
@@ -102,8 +111,8 @@ def create_all_items(world: MKSMWorld) -> None:
     diff = 0 if diff < 0 else diff
 
     red_koin_count = min(diff, 60)
-    world.red_koin_amount = red_koin_count
     itempool += [world.create_item("Red Koin") for _ in range(red_koin_count)]
+    world.red_koin_amount = red_koin_count
 
     new_diff = diff - red_koin_count
     new_diff = 0 if new_diff < 0 else new_diff

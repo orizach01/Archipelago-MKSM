@@ -4,7 +4,8 @@ from typing import Optional, Dict
 
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
     NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII, \
-    ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, TOURNAMENT_VICTORY_AMOUNT
+    ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, TOURNAMENT_VICTORY_AMOUNT, \
+    MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES
 
 from .pcsx2_interface.pine import Pine
 
@@ -77,7 +78,6 @@ class GameInterface:
             self.logger.info("Connected to PCSX2 Emulator")
         try:
             game_id = self.pcsx2_interface.get_game_id()
-            print(f"game_id: {game_id!r}")
             # The first read of the address will be null if the client is faster than the emulator
             self.current_game = None
             if game_id in ADDRESSES.keys():
@@ -113,9 +113,7 @@ class MKSMInterface(GameInterface):
         if game_state != GameState.GAMEPLAY:
             return set()
 
-        koin_addrs = self.addresses.get("RED_KOINS", {})
-        if not koin_addrs:
-            return set()
+        koin_addrs = self.addresses.get("RED_KOINS")
 
         all_addrs = {addr for bits in koin_addrs.values() for addr in bits}
         start, end = min(all_addrs), max(all_addrs)
@@ -145,10 +143,7 @@ class MKSMInterface(GameInterface):
 
     def clear_uncollected_red_koins(self, checked_names: set[str]) -> None:
         """Zero out every red koin's bits in game memory except for the ones in
-        `checked_names`. Used once on connect so a stale save state (leftover
-        bits from before this seed, debug saves, etc.) can't desync from what
-        the AP server currently considers checked, or get reported as a check
-        that never actually happened this run."""
+        `checked_names`."""
         koin_addrs = self.addresses.get("RED_KOINS", {})
         if not koin_addrs:
             return
@@ -243,22 +238,23 @@ class MKSMInterface(GameInterface):
         self._event_block_count = total_events
         return self._event_block_cache
 
-    def get_upgrade_amounts(self) -> CharacterPurchaseAmounts:
+    def get_upgrade_amounts(self) -> tuple[CharacterPurchaseAmounts, list[bool]]:
         square = self._read8(self.addresses.get("SQUARE_UPGRADE"))
         triangle = self._read8(self.addresses.get("TRIANGLE_UPGRADE"))
         circle = self._read8(self.addresses.get("CIRCLE_UPGRADE"))
         r2 = self._read8(self.addresses.get("R2_UPGRADE"))
-        combo = self._read8(self.addresses.get("COMBO_1"))
-        combo += self._read8(self.addresses.get("COMBO_2"))
-        combo += self._read8(self.addresses.get("COMBO_3"))
-        combo += self._read8(self.addresses.get("COMBO_4"))
-        combo += self._read8(self.addresses.get("COMBO_5"))
+        combos = [bool(x) for x in [self._read8(self.addresses.get("COMBO_1")),
+                                    self._read8(self.addresses.get("COMBO_2")),
+                                    self._read8(self.addresses.get("COMBO_3")),
+                                    self._read8(self.addresses.get("COMBO_4")),
+                                    self._read8(self.addresses.get("COMBO_5")),
+                                    ]]
 
         return CharacterPurchaseAmounts(square=square,
                                         triangle=triangle,
                                         circle=circle,
                                         r2=r2,
-                                        combo=combo)
+                                        combo=sum(combos)), combos
 
     def set_move_upgrades(self, square: int, triangle: int, circle: int, r2: int):
         # adding 1 because the game has the first upgrade already unlocked.
@@ -287,8 +283,7 @@ class MKSMInterface(GameInterface):
     def add_exp(self, exp_to_add):
         addr = self.addresses.get("EXP")
         current_exp = self._read32(addr)
-        current_exp += exp_to_add
-        self._write32(addr, current_exp)
+        self._write32(addr, max(0, current_exp + exp_to_add))
 
     def set_health_upgrades(self, health_upgrades: int) -> None:
         max_health = health_upgrades * 100 + 200
@@ -440,3 +435,17 @@ class MKSMInterface(GameInterface):
         # TODO check for other cutscenes maybe?
         return (self.get_current_animation() in ANIMATIONS_TO_LOCATION_NAME.keys() or
                 self.get_current_animation() == ABILITY_ANIMATION)
+
+    def main_menu_highlighted_option(self) -> int:
+        addr = self.addresses.get("MAIN_MENU_OPTION")
+        option = self._read32(addr)
+        return option
+
+    def set_starting_area(self, area):
+        addr = self.addresses.get("STARTING_AREA")
+        self._write32(addr, area)
+
+    def set_max_mana(self, mana_upgrades: int):
+        level = min(mana_upgrades, MANA_UPGRADE_AMOUNT)
+        for addr in self.addresses.get("MAX_MANA"):
+            self._write16(addr, MAX_MANA_UPGRADE_VALUES[level])

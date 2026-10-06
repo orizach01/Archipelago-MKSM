@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import Choice, PerGameCommonOptions, Range, DefaultOnToggle
+from Options import Choice, PerGameCommonOptions, Range, DefaultOnToggle, Toggle, OptionGroup
 
 
 class Character(Choice):
@@ -10,7 +10,6 @@ class Character(Choice):
     That means you don't need to unlock Scorpion/Sub-Zero first in order to play as them.
     The VS mode exclusive characters are also available, but due to how they work they always start with fully upgraded
      special moves except for R2, so that means there will be no special move upgrade items in the multiworld except R2,
-     and no blood bar upgrades beyond the first one.
     You can still purchase upgrades in the menu like with other characters.
     """
     display_name = "Character"
@@ -43,13 +42,13 @@ class Character(Choice):
 
 class RedKoinPercent(Range):
     """
-    The randomizer tries to fill the item pool with 60 Red Koin items which are then randomized around the multiworld.
-    There may be less than 60 if there aren't enough locations in the world.
-    To complete the goal you need to both beat the boss goal and have a set number of Red Koins.
-    This option determines what % of all the available Red Koins in the pool is needed.
-    0 means the goal will be beating the boss goal only.
-    100 means requiring to get ALL 60 Red Koins AND beating the boss goal.
-    80 (default) means you need to get at least 80% of all Red Koins AND beat the boss goal to win.
+    There are 60 Red Koins in the item pool.
+    Choose what percent of the 60 Red Koins are needed for goal.
+
+    0 - the goal will be beating the boss goal only, will turn Red Koins to filler.
+    80 (default) - get at least 80% of all Red Koins AND beat the boss goal to win.
+    100 - get ALL 60 Red Koins AND beat the boss goal.
+
     There is a tracker in the pause menu that shows: current amount / needed for goal / total in the multiworld.
     """
     display_name = "Red Koin goal percent"
@@ -61,20 +60,18 @@ class RedKoinPercent(Range):
 
 class BossGoal(Choice):
     """
-    What bosses are needed for goal completion.
+    What bosses are needed for goal.
     The goal also includes getting enough Red Koins, set in the red_koin_need_percent option.
-    no_bosses: no bosses at all are needed - the goal is Red Koins only.
-    shao_kahn_only (default): only the final boss of the game is needed for the goal.
-    main_bosses: all main bosses (Kitana, Reptile, Baraka, Goro and Scorpion) and the final boss.
-    main_and_secret_bosses: all previously mentioned bosses and all secret bosses (Ermac, Mileena and Kano).
-    Setting this to no_bosses requires red_koin_need_percent to be above 0, since otherwise
-    there would be nothing left to complete.
+
+    no_bosses - no bosses at all are needed, the goal is Red Koins only.
+    shao_kahn_only (default) - only the final boss of the game is needed for the goal.
+    main_bosses - all main bosses (Kitana, Reptile, Baraka, Goro and Scorpion) and the final boss.
+    main_and_secret_bosses - all previously mentioned bosses and all secret bosses (Ermac, Mileena and Kano).
+
+    Setting this to no_bosses requires red_koin_need_percent to be above 0.
     """
     display_name = "Boss Goal"
 
-    # -1 rather than shifting everything up by one, so the ordering still reads as "how
-    # much boss content", and every `>=` comparison in rules.py and callbacks.py keeps
-    # working unchanged - no_bosses simply falls below all of them.
     option_no_bosses = -1
     option_shao_kahn_only = 0
     option_main_bosses = 1
@@ -90,9 +87,78 @@ class Fatalitysanity(DefaultOnToggle):
     display_name = "Fatalitysanity"
 
 
+class Shopsanity(DefaultOnToggle):
+    """
+    If on, adds checks for purchasing special move upgrades and combos
+    Logic expects you to be able to reach a different amount of regions in the game before buying tiers of upgrades
+    and to buy upgrades in order or price, so buy the cheap upgrades first then go up.
+    If off, buying special move upgrades acts like the vanilla game.
+    """
+    display_name = "Shopsanity"
+
+
+class SkipTutorial(Toggle):
+    """
+    Turn this option on to skip the turotials in Goro's Lair.
+    Irrelevant when Wu-Shi start is on.
+    """
+    display_name = "Skip Tutorial"
+
+
+class WuShiStart(Toggle):
+    """
+    If on, when pressing new game in the main menu, the game will start in Wu-Shi instead of Goro's Lair.
+    You can get to Goro's Lair from Wu-Shi after getting the fist of ruin ability.
+    This option allows for faster starts and more varied seeds.
+    """
+    display_name = "Wu-Shi Academy start"
+
+
+class RandomizeTournamentVictories(DefaultOnToggle):
+    """
+    If on, shuffles 5 tournament victories in the item pool, all 5 are required to open the door to the foundry.
+    when off, beating all 5 main bosses is required to open the foundry door.
+    """
+    display_name = "Randomize tournament victories"
+
+
+class ManaUpgrades(DefaultOnToggle):
+    """
+    If on, shuffles 4 mana upgrades to the item pool.
+    the upgrades increase your maximum mana by 25% each time, doubling your mana after all upgrades
+    """
+    display_name = "Mana Upgrades"
+
+
 @dataclass
 class MKSMOptions(PerGameCommonOptions):
     character: Character
     red_koin_need_percent: RedKoinPercent
     boss_goal: BossGoal
     fatalitysanity: Fatalitysanity
+    shopsanity: Shopsanity
+    wu_shi_start: WuShiStart
+    skip_tutorial: SkipTutorial
+    randomize_tournament_victories: RandomizeTournamentVictories
+    mana_upgrades: ManaUpgrades
+
+
+OPTION_GROUPS = [
+    OptionGroup("Game Options", [
+        Character,
+        RandomizeTournamentVictories,
+        SkipTutorial,
+        WuShiStart,
+    ]),
+    OptionGroup("Goals", [
+        RedKoinPercent,
+        BossGoal
+    ]),
+    OptionGroup("Extra Locations", [
+        Shopsanity,
+        Fatalitysanity,
+    ]),
+    OptionGroup("Extra Items", [
+        ManaUpgrades
+    ]),
+]

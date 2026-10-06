@@ -1,15 +1,31 @@
 from collections.abc import Mapping
 from typing import Any, Optional
 
+from BaseClasses import Tutorial
 # Imports of base Archipelago modules must be absolute.
 from Options import OptionError, Option
-from worlds.AutoWorld import World
+from worlds.AutoWorld import World, WebWorld
 
 # Imports of your world's files must be relative.
 from . import items, locations, regions, rules  # , web_world
 
 from . import options as mksm_options  # rename due to a name conflict with World.options
 from .consts import FILLER_EXP
+from .location_groups import LOCATION_GROUPS
+from .options import OPTION_GROUPS
+
+
+class MKSMWebWorld(WebWorld):
+    theme = "stone"
+    option_groups = OPTION_GROUPS
+    tutorials = [Tutorial(
+        "Multiworld Setup Guide",
+        "A guide for setting up Mortal Kombat: Shaolin Monks to be played in Archipelago.",
+        "English",
+        "setup_en.md",
+        "setup/en",
+        ["orizach01"]
+    )]
 
 
 class MKSMWorld(World):
@@ -27,11 +43,15 @@ class MKSMWorld(World):
     item_name_to_id = items.ITEM_NAME_TO_ID
     location_name_to_id = locations.LOCATION_NAME_TO_ID
 
+    location_name_groups = LOCATION_GROUPS
+
     topology_present = True
 
     origin_region_name = "Menu"
 
     ut_can_gen_without_yaml = True
+
+    web = MKSMWebWorld()
 
     def generate_early(self) -> None:
         re_gen_passthrough = getattr(self.multiworld, "re_gen_passthrough", {})
@@ -79,10 +99,21 @@ class MKSMWorld(World):
             "red_koin_need_percent": self.options.red_koin_need_percent.value,
             "boss_goal": self.options.boss_goal.value,
             "fatalitysanity": bool(self.options.fatalitysanity.value),
+            "shopsanity": bool(self.options.shopsanity.value),
+            "wu_shi_start": bool(self.options.wu_shi_start.value),
+            "skip_tutorial": bool(self.options.skip_tutorial.value),
+            "randomize_tournament_victories": bool(self.options.randomize_tournament_victories.value),
+            "mana_upgrades": bool(self.options.mana_upgrades.value),
             "options": self.options.as_dict("character",
                                             "red_koin_need_percent",
                                             "boss_goal",
-                                            "fatalitysanity")
+                                            "fatalitysanity",
+                                            "shopsanity",
+                                            "wu_shi_start",
+                                            "skip_tutorial",
+                                            "randomize_tournament_victories",
+                                            "mana_upgrades",
+                                            )
         }
 
     @staticmethod

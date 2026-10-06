@@ -14,7 +14,8 @@ from typing import TYPE_CHECKING
 from NetUtils import ClientStatus
 from .consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
     FOUNDRY_DOOR_OPEN_EVENT, TOURNAMENT_VICTORY_AMOUNT, \
-    FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events
+    FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events, MAIN_MENU_NEW_GAME_OPTION, WU_SHI_START_AREA, \
+    MANA_UPGRADE_AMOUNT, HEALTH_UPGRADE_AMOUNT
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 from .options import BossGoal
@@ -44,11 +45,12 @@ if TYPE_CHECKING:
 async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
-    # TODO check portal start area open world style -> update: address in code notes for pause menu area
     # TODO open co op doors from start
     # TODO smoke missions
-    # TODO mileena boss is bugged, check which events are needed to not bug her -> update: need to restart game to fix
-    # TODO add shopsanity option?
+    # TODO find reptile beaten flag and set it to 1 to get brutality red koin
+    # TODO add fast wushi start option
+    # TODO option to have special moves start locked if no shopsanity,
+    #  maybe if shopsanity is on still make it so you need to unlock the item before buying upgrades to it
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
@@ -61,10 +63,12 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         sync_foundry_door(ctx)
         clear_exp(ctx)
 
+        set_wushi_start(ctx)
         set_character(ctx)
         set_move_upgrades(ctx)
         set_abilities(ctx)
         set_health_upgrades(ctx)
+        set_mana_upgrades(ctx)
         set_blood_bar(ctx)
         update_koin_counter(ctx)
         update_tournament_victories_counter(ctx)
@@ -89,36 +93,24 @@ def clear_events(ctx: MKSMContext):
     if ctx.game_state == GameState.GAMEPLAY:
         return
 
-    if not ctx.slot_data or "character" not in ctx.slot_data:
-        return  # haven't heard back from the server yet - don't guess
-
-    if "EVENT_ARRAY" not in ctx.stored_data or ctx.stored_data["EVENT_ARRAY"] is None:
-        server_array = default_event_array(ctx.slot_data['character'])
+    if ctx.event_array_key not in ctx.stored_data or ctx.stored_data[ctx.event_array_key] is None:
+        server_array = default_event_array(ctx.slot_data)
     else:
-        server_array = list(ctx.stored_data["EVENT_ARRAY"])
+        server_array = list(ctx.stored_data[ctx.event_array_key])
 
     ctx.game_interface.clear_event_log(bytes(server_array))
 
 
 def sync_foundry_door(ctx: MKSMContext) -> None:
-    """Gate the foundry door on Tournament victories instead of real medallions.
+    if ctx.slot_data["randomize_tournament_victories"]:
+        victories = sum(item.item == ITEM_NAME_TO_ID["Tournament victory"]
+                        for item in ctx.items_received)
 
-    Below the threshold we hold FOUNDRY_DOOR_FLAG down, which keeps the game's medallion
-    count under five so the portal cutscene never fires. At or above it we inject the
-    door-opening event.
+        should_be_closed = victories < TOURNAMENT_VICTORY_AMOUNT
+    else:
+        should_be_closed = not all(LOCATION_NAME_TO_ID[name] in ctx.checked_locations for name in MAIN_BOSS_LOCATIONS)
 
-    Note the asymmetry: we suppress with a memory write but open with an event. Stripping
-    the door events does not work in the other direction, because 0x3e doubles as the
-    cutscene's "already played" marker - deleting it made the cutscene replay on every
-    portal transit, reopening the door each time, and removing the record can't close a
-    door the cutscene has already opened in the world."""
-    victories = sum(item.item == ITEM_NAME_TO_ID["Tournament victory"]
-                    for item in ctx.items_received)
-
-    if victories < TOURNAMENT_VICTORY_AMOUNT:
-        # Held down in every game state, not just gameplay: the cutscene condition is
-        # evaluated on an area transition, and a tick boundary shouldn't get to decide
-        # whether the door opens.
+    if should_be_closed:
         ctx.game_interface.set_foundry_door_flag(0)
         return
 
@@ -136,9 +128,10 @@ def sync_foundry_door(ctx: MKSMContext) -> None:
 
 def clear_exp(ctx: MKSMContext) -> None:
     if ctx.game_state != GameState.GAMEPLAY:
-        if "CURRENT_EXP" not in ctx.stored_data:
-            return  # haven't heard back from the server yet - don't zero it on a guess
-        ctx.game_interface.set_exp(ctx.stored_data["CURRENT_EXP"] or 0)
+        if ctx.current_exp_key not in ctx.stored_data:
+            # current_exp not updated on the server yet
+            return
+        ctx.game_interface.set_exp(ctx.stored_data[ctx.current_exp_key] or 0)
 
 
 async def update_events_in_server(ctx: MKSMContext) -> None:
@@ -149,7 +142,7 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
     current_area = ctx.game_interface.get_current_area()
 
     events = chunk_events(current_events)
-    server_array = ctx.stored_data.get("EVENT_ARRAY") or []
+    server_array = ctx.stored_data.get(ctx.event_array_key) or []
 
     # removing current room's events from the end of the array while not currently saving the game
     if not ctx.game_interface.is_currently_saving():
@@ -162,7 +155,7 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
         return
 
     await ctx.send_msgs([{"cmd": "Set",
-                          "key": "EVENT_ARRAY",
+                          "key": ctx.event_array_key,
                           "operations": [
                               {
                                   "operation": "replace",
@@ -177,7 +170,7 @@ async def update_exp_in_server(ctx: MKSMContext) -> None:
         return
 
     current_exp = ctx.game_interface.get_current_exp()
-    server_exp = ctx.stored_data.get("CURRENT_EXP") or 0
+    server_exp = ctx.stored_data.get(ctx.current_exp_key) or 0
 
     if current_exp == 0 and server_exp > 0:
         # spending exp on upgrades legitimately lowers it, so a drop alone isn't suspicious -
@@ -190,7 +183,7 @@ async def update_exp_in_server(ctx: MKSMContext) -> None:
         return
 
     await ctx.send_msgs([{"cmd": "Set",
-                          "key": "CURRENT_EXP",
+                          "key": ctx.current_exp_key,
                           "operations": [
                               {
                                   "operation": "replace",
@@ -212,10 +205,8 @@ def read_game_state(ctx) -> None:
 
 
 async def sync_red_koins(ctx: MKSMContext) -> None:
-    """One-time sync run the first tick we have both a live game connection and
-    server state: clears every red koin's bits in game memory except for the
-    locations the AP server already considers checked. See
-    MKSMInterface.clear_uncollected_red_koins for why."""
+    """clears every red koin's bits in game memory except for the
+    locations the AP server already considers checked."""
     if ctx.game_state != GameState.GAMEPLAY:
         koin_names = ctx.game_interface.addresses.get("RED_KOINS", {}).keys()
         checked_names = {name for name in koin_names if LOCATION_NAME_TO_ID[name] in ctx.checked_locations}
@@ -235,25 +226,27 @@ async def check_red_koins(ctx: MKSMContext) -> None:
 
 
 async def check_move_upgrades(ctx: MKSMContext) -> None:
-    if ctx.is_paused:
-        current_upgrades = ctx.game_interface.get_upgrade_amounts()
-        square = min(current_upgrades.square, 4)
-        triangle = min(current_upgrades.triangle, 4)
-        circle = min(current_upgrades.circle, 5)
-        r2 = min(current_upgrades.r2, 5)
+    if not ctx.is_paused:
+        return
 
-        checked_names = set()
-        checked_names |= {f"Purchase upgrade - Square {i}" for i in range(2, square + 1)}
-        checked_names |= {f"Purchase upgrade - Triangle {i}" for i in range(2, triangle + 1)}
-        checked_names |= {f"Purchase upgrade - Circle {i}" for i in range(2, circle + 1)}
-        checked_names |= {f"Purchase upgrade - R2 {i}" for i in range(2, r2 + 1)}
-        checked_names |= {f"Purchase combo {i}" for i in range(1, current_upgrades.combo + 1)}
+    current_upgrades, combos = ctx.game_interface.get_upgrade_amounts()
+    square = min(current_upgrades.square, 4)
+    triangle = min(current_upgrades.triangle, 4)
+    circle = min(current_upgrades.circle, 5)
+    r2 = min(current_upgrades.r2, 5)
 
-        if not checked_names:
-            return
+    checked_names = set()
+    checked_names |= {f"Purchase upgrade - Square {i}" for i in range(2, square + 1)}
+    checked_names |= {f"Purchase upgrade - Triangle {i}" for i in range(2, triangle + 1)}
+    checked_names |= {f"Purchase upgrade - Circle {i}" for i in range(2, circle + 1)}
+    checked_names |= {f"Purchase upgrade - R2 {i}" for i in range(2, r2 + 1)}
+    checked_names |= {f"Purchase combo {i}" for i, checked in enumerate(combos, 1) if checked}
 
-        location_ids = {LOCATION_NAME_TO_ID[name] for name in checked_names}
-        await ctx.check_locations(location_ids)
+    if not checked_names:
+        return
+
+    location_ids = {LOCATION_NAME_TO_ID[name] for name in checked_names}
+    await ctx.check_locations(location_ids)
 
 
 # how many purchase tiers exist per move, i.e. range(2, stop) over the location names
@@ -294,25 +287,27 @@ def on_pause_changed(ctx: MKSMContext, is_paused: bool) -> None:
     the next tick. The game builds the pause menu from these values within a frame or
     two of setting the flag, and a tick is tens of milliseconds of blocking PINE work -
     far too late. Everything in here must stay cheap for the same reason."""
-    if is_paused:
-        _write_upgrades(ctx, *_upgrades_from_checked(ctx))
-        ctx.set_upgrades_in_pause = True
-    else:
-        _write_upgrades(ctx, *_upgrades_from_received(ctx))
-        ctx.set_upgrades_in_pause = False
+    if ctx.slot_data["shopsanity"]:
+        if is_paused:
+            _write_upgrades(ctx, *_upgrades_from_checked(ctx))
+            ctx.set_upgrades_in_pause = True
+        else:
+            _write_upgrades(ctx, *_upgrades_from_received(ctx))
+            ctx.set_upgrades_in_pause = False
 
 
 def set_move_upgrades(ctx: MKSMContext) -> None:
     """Safety net for on_pause_changed: if an edge was missed because the loop was
     blocked inside a tick, this corrects it. Latched, so it is a no-op when the fast
     path already ran."""
-    if ctx.is_paused:
-        if not ctx.set_upgrades_in_pause:
-            _write_upgrades(ctx, *_upgrades_from_checked(ctx))
-            ctx.set_upgrades_in_pause = True
-    else:
-        _write_upgrades(ctx, *_upgrades_from_received(ctx))
-        ctx.set_upgrades_in_pause = False
+    if ctx.slot_data["shopsanity"]:
+        if ctx.is_paused:
+            if not ctx.set_upgrades_in_pause:
+                _write_upgrades(ctx, *_upgrades_from_checked(ctx))
+                ctx.set_upgrades_in_pause = True
+        else:
+            _write_upgrades(ctx, *_upgrades_from_received(ctx))
+            ctx.set_upgrades_in_pause = False
 
 
 def set_abilities(ctx: MKSMContext) -> None:
@@ -354,7 +349,7 @@ async def check_events(ctx: MKSMContext) -> None:
 
 def set_health_upgrades(ctx: MKSMContext) -> None:
     health_upgrades = sum(item.item == ITEM_NAME_TO_ID["Health upgrade"] for item in ctx.items_received)
-    health_upgrades = min(health_upgrades, 4)
+    health_upgrades = min(health_upgrades, HEALTH_UPGRADE_AMOUNT)
 
     ctx.game_interface.set_health_upgrades(health_upgrades)
 
@@ -371,7 +366,7 @@ def set_blood_bar(ctx: MKSMContext):
 
 
 async def check_finishing_moves(ctx: MKSMContext) -> None:
-    if not ctx.slot_data or not ctx.slot_data.get("fatalitysanity"):
+    if not ctx.slot_data["fatalitysanity"]:
         return
 
     animation = ctx.game_interface.get_current_animation()
@@ -384,9 +379,6 @@ async def check_finishing_moves(ctx: MKSMContext) -> None:
 
 
 def update_koin_counter(ctx):
-    if not ctx.slot_data or "red_koin_amount" not in ctx.slot_data or "red_koin_need_percent" not in ctx.slot_data:
-        return  # haven't heard back from the server yet - don't guess
-
     total = ctx.slot_data["red_koin_amount"]
     needed = int(total * ctx.slot_data["red_koin_need_percent"] / 100)
     current = sum(item.item == ITEM_NAME_TO_ID["Red Koin"] for item in ctx.items_received)
@@ -399,8 +391,8 @@ def update_koin_counter(ctx):
 
 
 def update_tournament_victories_counter(ctx: MKSMContext):
-    if not ctx.slot_data or "red_koin_amount" not in ctx.slot_data or "red_koin_need_percent" not in ctx.slot_data:
-        return  # haven't heard back from the server yet - don't guess
+    if not ctx.slot_data["randomize_tournament_victories"]:
+        return
 
     current = sum(item.item == ITEM_NAME_TO_ID["Tournament victory"] for item in ctx.items_received)
 
@@ -408,10 +400,6 @@ def update_tournament_victories_counter(ctx: MKSMContext):
 
 
 async def check_completed_game(ctx: MKSMContext):
-    if not ctx.slot_data or "red_koin_amount" not in ctx.slot_data or "red_koin_need_percent" not in ctx.slot_data \
-            or "boss_goal" not in ctx.slot_data:
-        return  # haven't heard back from the server yet - don't guess
-
     total = ctx.slot_data["red_koin_amount"]
     needed = int(total * ctx.slot_data["red_koin_need_percent"] / 100)
     current = sum(item.item == ITEM_NAME_TO_ID["Red Koin"] for item in ctx.items_received)
@@ -426,9 +414,6 @@ async def check_completed_game(ctx: MKSMContext):
     if boss_goal >= BossGoal.option_main_and_secret_bosses:
         required_boss_locations += SECRET_BOSS_LOCATIONS
 
-    # no_bosses leaves this empty on purpose, and all() of nothing is True - the goal is
-    # then Red Koins alone. generate_early rejects the combination where both halves are
-    # switched off, so an empty list here can never mean "no goal at all".
     bosses_defeated = all(LOCATION_NAME_TO_ID[name] in ctx.checked_locations for name in required_boss_locations)
 
     if current >= needed and bosses_defeated:
@@ -437,9 +422,6 @@ async def check_completed_game(ctx: MKSMContext):
 
 
 def set_character(ctx: MKSMContext) -> None:
-    if not ctx.slot_data or "character" not in ctx.slot_data:
-        return  # haven't heard back from the server yet - don't guess
-
     character_option = ctx.slot_data["character"]
     ctx.game_interface.set_character(character_option)
 
@@ -455,23 +437,28 @@ async def check_death(ctx: MKSMContext) -> None:
 
 
 async def set_exp_items(ctx: MKSMContext) -> None:
-    if ctx.game_state != GameState.GAMEPLAY or "EXP_ITEMS_GIVEN" not in ctx.stored_data:
+    if ctx.game_state != GameState.GAMEPLAY or ctx.exp_items_given_key not in ctx.stored_data:
         return
 
     exp_items = sum(item.item == ITEM_NAME_TO_ID[f"{FILLER_EXP} EXP"] for item in ctx.items_received)
     # stored_data is the cross-restart source of truth; ctx.exp_items_given is an
     # optimistic same-session cache so we don't re-grant while a Set is still in flight.
-    exp_items_given = max(ctx.stored_data.get("EXP_ITEMS_GIVEN") or 0, ctx.exp_items_given)
+    exp_items_given = max(ctx.stored_data.get(ctx.exp_items_given_key) or 0, ctx.exp_items_given)
 
     if exp_items == exp_items_given:
         return
 
     delta = exp_items - exp_items_given
+
+    if delta <= 0:
+        ctx.exp_items_given = exp_items
+        return
+
     ctx.game_interface.add_exp(delta * FILLER_EXP)
     ctx.exp_items_given = exp_items
 
     await ctx.send_msgs([{"cmd": "Set",
-                          "key": "EXP_ITEMS_GIVEN",
+                          "key": ctx.exp_items_given_key,
                           "operations": [
                               {
                                   "operation": "replace",
@@ -511,3 +498,24 @@ def force_ui(ctx: MKSMContext):
 async def check_final_boss(ctx: MKSMContext):
     if ctx.game_state == GameState.GAME_BEATEN_FMV and ctx.prev_state == GameState.GAMEPLAY:
         await ctx.check_locations([LOCATION_NAME_TO_ID[FINAL_BOSS_LOCATION]])
+
+
+def set_wushi_start(ctx: MKSMContext):
+    if not ctx.slot_data["wu_shi_start"] or ctx.game_state != GameState.MAIN_MENU:
+        return
+
+    option = ctx.game_interface.main_menu_highlighted_option()
+    if option != MAIN_MENU_NEW_GAME_OPTION:
+        return
+
+    ctx.game_interface.set_starting_area(WU_SHI_START_AREA)
+
+
+def set_mana_upgrades(ctx: MKSMContext):
+    if not ctx.slot_data["mana_upgrades"]:
+        return
+
+    mana_upgrades = sum(item.item == ITEM_NAME_TO_ID["Mana upgrade"] for item in ctx.items_received)
+    mana_upgrades = min(mana_upgrades, MANA_UPGRADE_AMOUNT)
+
+    ctx.game_interface.set_max_mana(mana_upgrades)
