@@ -51,9 +51,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO group locations
     # TODO group options
     # TODO tweak max mana values so that you can double jump 4 times when maxed and 3 when 2
-    # TODO fix combos check in order instead of separate per combo
     # TODO add fast wushi start option
-    # TODO test if wall run is enough for scorpion fight
     # TODO test death link
     # TODO option to have special moves start locked if no shopsanity,
     #  maybe if shopsanity is on still make it so you need to unlock the item before buying upgrades to it

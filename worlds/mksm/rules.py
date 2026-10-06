@@ -101,7 +101,7 @@ def set_purchase_rules(world: MKSMWorld) -> None:
 
 
 def set_all_location_rules(world: MKSMWorld) -> None:
-    world.set_rule(world.get_location("GL: koin above the doorway"), DOUBLE_JUMP | WALL_JUMP)  # TODO check both
+    world.set_rule(world.get_location("GL: koin above the doorway"), DOUBLE_JUMP | WALL_JUMP | WALL_RUN)  # TODO check both
     world.set_rule(world.get_location("GL: koin above the breakable door"), DOUBLE_JUMP | WALL_JUMP)
     world.set_rule(world.get_location("WSA: koin after the tree branch swing"), SWING | DOUBLE_JUMP)
     world.set_rule(
@@ -188,7 +188,7 @@ def connect_regions(world: MKSMWorld) -> None:
     portal_1.connect(wu_shi)
     portal_1.connect(portal_2)
 
-    portal_2.connect(netherrealm, rule=SWING & (DOUBLE_JUMP | (LONG_JUMP & WALL_RUN)))
+    portal_2.connect(netherrealm, rule=SWING & (DOUBLE_JUMP | WALL_RUN))
 
     portal_1.connect(forest, rule=FIST_OF_RUIN)
     forest.connect(forest_bridges, rule=SWING & WALL_CLIMB)
