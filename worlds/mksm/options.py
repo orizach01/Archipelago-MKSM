@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import Choice, PerGameCommonOptions, Range, DefaultOnToggle, Toggle
+from Options import Choice, PerGameCommonOptions, Range, DefaultOnToggle, Toggle, OptionGroup
 
 
 class Character(Choice):
@@ -141,3 +141,24 @@ class MKSMOptions(PerGameCommonOptions):
     skip_tutorial: SkipTutorial
     randomize_tournament_victories: RandomizeTournamentVictories
     mana_upgrades: ManaUpgrades
+
+
+OPTION_GROUPS = [
+    OptionGroup("Game Options", [
+        Character,
+        RandomizeTournamentVictories,
+        SkipTutorial,
+        WuShiStart,
+    ]),
+    OptionGroup("Goals", [
+        RedKoinPercent,
+        BossGoal
+    ]),
+    OptionGroup("Extra Locations", [
+        Shopsanity,
+        Fatalitysanity,
+    ]),
+    OptionGroup("Extra Items", [
+        ManaUpgrades
+    ]),
+]

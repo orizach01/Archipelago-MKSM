@@ -1,9 +1,10 @@
 from collections.abc import Mapping
 from typing import Any, Optional
 
+from BaseClasses import Tutorial
 # Imports of base Archipelago modules must be absolute.
 from Options import OptionError, Option
-from worlds.AutoWorld import World
+from worlds.AutoWorld import World, WebWorld
 
 # Imports of your world's files must be relative.
 from . import items, locations, regions, rules  # , web_world
@@ -11,6 +12,20 @@ from . import items, locations, regions, rules  # , web_world
 from . import options as mksm_options  # rename due to a name conflict with World.options
 from .consts import FILLER_EXP
 from .location_groups import LOCATION_GROUPS
+from .options import OPTION_GROUPS
+
+
+class MKSMWebWorld(WebWorld):
+    theme = "stone"
+    option_groups = OPTION_GROUPS
+    tutorials = [Tutorial(
+        "Multiworld Setup Guide",
+        "A guide for setting up Mortal Kombat: Shaolin Monks to be played in Archipelago.",
+        "English",
+        "setup_en.md",
+        "setup/en",
+        ["orizach01"]
+    )]
 
 
 class MKSMWorld(World):
