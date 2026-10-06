@@ -49,7 +49,6 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO smoke missions
     # TODO find reptile beaten flag and set it to 1 to get brutality red koin
     # TODO add fast wushi start option
-    # TODO test death link
     # TODO option to have special moves start locked if no shopsanity,
     #  maybe if shopsanity is on still make it so you need to unlock the item before buying upgrades to it
 
