@@ -48,7 +48,6 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO open co op doors from start
     # TODO smoke missions
     # TODO find reptile beaten flag and set it to 1 to get brutality red koin
-    # TODO group locations
     # TODO group options
     # TODO tweak max mana values so that you can double jump 4 times when maxed and 3 when 2
     # TODO add fast wushi start option

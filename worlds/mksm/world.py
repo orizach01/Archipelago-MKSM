@@ -10,6 +10,7 @@ from . import items, locations, regions, rules  # , web_world
 
 from . import options as mksm_options  # rename due to a name conflict with World.options
 from .consts import FILLER_EXP
+from .location_groups import LOCATION_GROUPS
 
 
 class MKSMWorld(World):
@@ -26,6 +27,8 @@ class MKSMWorld(World):
 
     item_name_to_id = items.ITEM_NAME_TO_ID
     location_name_to_id = locations.LOCATION_NAME_TO_ID
+
+    location_name_groups = LOCATION_GROUPS
 
     topology_present = True
 
