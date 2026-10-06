@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from BaseClasses import CollectionRule
 from rule_builder.options import OptionFilter
-from rule_builder.rules import Has, Rule, HasFromListUnique, AtLeast, CanReachRegion
+from rule_builder.rules import Has, Rule
 from .consts import TOURNAMENT_VICTORY_AMOUNT
 from .locations import FINISHING_MOVES_LOCATIONS
 from .options import BossGoal, Shopsanity, RandomizeTournamentVictories
@@ -53,6 +54,15 @@ def set_all_rules(world: MKSMWorld) -> None:
     set_finishing_moves_rules(world)
 
 
+PURCHASE_REGIONS = ("Monastery", "Forest", "Tombs", "Netherrealm", "Wasteland 1")
+
+
+def can_reach_at_least(count: int, player: int, region_names: tuple[str, ...]) -> CollectionRule:
+    if count <= 0:
+        return lambda state: True
+    return lambda state: sum(state.can_reach_region(name, player) for name in region_names) >= count
+
+
 def set_purchase_rules(world: MKSMWorld) -> None:
     tiers = {
         0: [
@@ -85,23 +95,18 @@ def set_purchase_rules(world: MKSMWorld) -> None:
     }
 
     for tier, loc_names in tiers.items():
+        rule = can_reach_at_least(tier, world.player, PURCHASE_REGIONS)
         for loc_name in loc_names:
             try:
                 loc = world.get_location(loc_name)
             except KeyError:
                 continue
-            world.set_rule(loc, AtLeast(
-                tier,
-                CanReachRegion("Monastery"),
-                CanReachRegion("Forest"),
-                CanReachRegion("Tombs"),
-                CanReachRegion("Netherrealm"),
-                CanReachRegion("Wasteland 1"),
-            ))
+            world.set_rule(loc, rule)
 
 
 def set_all_location_rules(world: MKSMWorld) -> None:
-    world.set_rule(world.get_location("GL: koin above the doorway"), DOUBLE_JUMP | WALL_JUMP | WALL_RUN)  # TODO check both
+    world.set_rule(world.get_location("GL: koin above the doorway"),
+                   DOUBLE_JUMP | WALL_JUMP | WALL_RUN)
     world.set_rule(world.get_location("GL: koin above the breakable door"), DOUBLE_JUMP | WALL_JUMP)
     world.set_rule(world.get_location("WSA: koin after the tree branch swing"), SWING | DOUBLE_JUMP)
     world.set_rule(
