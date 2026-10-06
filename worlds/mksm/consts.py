@@ -531,11 +531,11 @@ WU_SHI_START_AREA = 0x67
 MAIN_MENU_NEW_GAME_OPTION = 0
 
 MAX_MANA_UPGRADE_VALUES = {
-    0: 0x42c8,  # 100.0 (vanilla)
-    1: 0x42fa,  # 125.0
-    2: 0x4316,  # 150.0
-    3: 0x432f,  # 175.0
-    4: 0x4348,  # 200.0
+    0: 0x42c8,
+    1: 0x430c,
+    2: 0x4320,
+    3: 0x4348,
+    4: 0x4360,
 }
 
 MANA_UPGRADE_AMOUNT = max(MAX_MANA_UPGRADE_VALUES.keys())
