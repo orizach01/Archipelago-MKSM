@@ -51,6 +51,8 @@ class MKSMWorld(World):
 
     ut_can_gen_without_yaml = True
 
+    web = MKSMWebWorld()
+
     def generate_early(self) -> None:
         re_gen_passthrough = getattr(self.multiworld, "re_gen_passthrough", {})
         if re_gen_passthrough and self.game in re_gen_passthrough:
