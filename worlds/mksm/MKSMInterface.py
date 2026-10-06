@@ -238,22 +238,23 @@ class MKSMInterface(GameInterface):
         self._event_block_count = total_events
         return self._event_block_cache
 
-    def get_upgrade_amounts(self) -> CharacterPurchaseAmounts:
+    def get_upgrade_amounts(self) -> tuple[CharacterPurchaseAmounts, list[bool]]:
         square = self._read8(self.addresses.get("SQUARE_UPGRADE"))
         triangle = self._read8(self.addresses.get("TRIANGLE_UPGRADE"))
         circle = self._read8(self.addresses.get("CIRCLE_UPGRADE"))
         r2 = self._read8(self.addresses.get("R2_UPGRADE"))
-        combo = self._read8(self.addresses.get("COMBO_1"))
-        combo += self._read8(self.addresses.get("COMBO_2"))
-        combo += self._read8(self.addresses.get("COMBO_3"))
-        combo += self._read8(self.addresses.get("COMBO_4"))
-        combo += self._read8(self.addresses.get("COMBO_5"))
+        combos = [bool(x) for x in [self._read8(self.addresses.get("COMBO_1")),
+                                    self._read8(self.addresses.get("COMBO_2")),
+                                    self._read8(self.addresses.get("COMBO_3")),
+                                    self._read8(self.addresses.get("COMBO_4")),
+                                    self._read8(self.addresses.get("COMBO_5")),
+                                    ]]
 
         return CharacterPurchaseAmounts(square=square,
                                         triangle=triangle,
                                         circle=circle,
                                         r2=r2,
-                                        combo=combo)
+                                        combo=sum(combos)), combos
 
     def set_move_upgrades(self, square: int, triangle: int, circle: int, r2: int):
         # adding 1 because the game has the first upgrade already unlocked.

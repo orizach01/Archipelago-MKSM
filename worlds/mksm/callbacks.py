@@ -55,6 +55,8 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     # TODO add fast wushi start option
     # TODO test if wall run is enough for scorpion fight
     # TODO test death link
+    # TODO option to have special moves start locked if no shopsanity,
+    #  maybe if shopsanity is on still make it so you need to unlock the item before buying upgrades to it
 
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
@@ -233,7 +235,7 @@ async def check_move_upgrades(ctx: MKSMContext) -> None:
     if not ctx.is_paused:
         return
 
-    current_upgrades = ctx.game_interface.get_upgrade_amounts()
+    current_upgrades, combos = ctx.game_interface.get_upgrade_amounts()
     square = min(current_upgrades.square, 4)
     triangle = min(current_upgrades.triangle, 4)
     circle = min(current_upgrades.circle, 5)
@@ -244,7 +246,7 @@ async def check_move_upgrades(ctx: MKSMContext) -> None:
     checked_names |= {f"Purchase upgrade - Triangle {i}" for i in range(2, triangle + 1)}
     checked_names |= {f"Purchase upgrade - Circle {i}" for i in range(2, circle + 1)}
     checked_names |= {f"Purchase upgrade - R2 {i}" for i in range(2, r2 + 1)}
-    checked_names |= {f"Purchase combo {i}" for i in range(1, current_upgrades.combo + 1)}
+    checked_names |= {f"Purchase combo {i}" for i, checked in enumerate(combos, 1) if checked}
 
     if not checked_names:
         return
