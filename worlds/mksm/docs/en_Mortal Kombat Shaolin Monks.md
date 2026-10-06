@@ -264,9 +264,14 @@ Meaning you can always come back to it when you want to go to a new area.
     * In that case you can manually walk back to the Orochi room, then back to the main room.
 
 The general flow of the run is this:
+
 * At the start you press New Game
 * Then you can make save files in different spots, always making a new save file and not overwriting old ones.
 * Then you can exit to menu and "fast travel" to old save spots.
+
+## Deathlink
+
+Deathlink is supported and can be turned on by using the `/deathlink` command in the client.
 
 ## What other changes are made to the game?
 
