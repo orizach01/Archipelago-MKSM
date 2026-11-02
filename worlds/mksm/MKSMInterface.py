@@ -5,7 +5,7 @@ from typing import Optional, Dict
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
     NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII, \
     ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, TOURNAMENT_VICTORY_AMOUNT, \
-    MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES
+    MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES, PORTAL_MAP, PORTAL_TRIGGER_COUNT
 
 from .pcsx2_interface.pine import Pine
 
@@ -448,6 +448,17 @@ class MKSMInterface(GameInterface):
     def set_new_game_map(self, area: int):
         for addr, base in self.addresses.get("NEW_GAME_MAP_INSTS"):
             self._write32(addr, base | (area & 0xFFFF))
+
+    def get_current_map(self) -> int:
+        # STARTING_AREA is also the current map once in game
+        return self._read32(self.addresses.get("STARTING_AREA"))
+
+    def block_wu_shi_bridge(self) -> None:
+        if self.get_current_map() != PORTAL_MAP:
+            return
+        if self._read32(self.addresses.get("TRIGGER_COUNT")) != PORTAL_TRIGGER_COUNT:
+            return
+        self._write32(self.addresses.get("WU_SHI_BRIDGE_CMD_COUNT"), 0)
 
     def set_max_mana(self, mana_upgrades: int):
         level = min(mana_upgrades, MANA_UPGRADE_AMOUNT)

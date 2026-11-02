@@ -229,6 +229,15 @@ ADDRESSES = {
             (0x141BFC, 0x24030000),
         ),
 
+        # The current room's script triggers live in a table at 0x738a70 (0x110 bytes each,
+        # in script order); this is how many there are. The portal room has PORTAL_TRIGGER_COUNT.
+        "TRIGGER_COUNT": 0x745ef0,
+        # Command count of the portal room's trigger 0x1F (_d_portopn), normally 5. That
+        # trigger fires when the first shadow priest pair dies and raises the Wu-Shi bridge;
+        # with 0 commands it does nothing. The table is rebuilt from the script on every
+        # visit, so nothing needs restoring.
+        "WU_SHI_BRIDGE_CMD_COUNT": 0x73ab74,
+
         "MAX_MANA": (
             0x169838,
             0x18afe4,
@@ -375,6 +384,11 @@ GOROS_LAIR_SKIP_EVENTS = [
     *_make_event(0x65, 0x2f),
 ]
 
+# TODO this
+WU_SHI_SKIP_EVENTS = [
+
+]
+
 WASTELAND_EVENTS = [
     # Pre goro
     *_make_event(0x2e, 0x24),
@@ -391,7 +405,7 @@ WASTELAND_EVENTS = [
 
 def default_event_array(slot_data):
     character = slot_data["character"]
-    wu_shi_start = slot_data["wu_shi_start"]
+    portal_start = slot_data["portal_start"]
     skip_tutorial = slot_data["skip_tutorial"]
     character = Character(character)
     default = _DEFAULT_EVENT_ARRAY.copy()
@@ -402,8 +416,10 @@ def default_event_array(slot_data):
         default += MOON_KOIN_EVENTS
     if character.is_vs():
         default += SHOOTING_KOIN_EVENTS
-    if wu_shi_start or skip_tutorial:
+    if portal_start or skip_tutorial:
         default += GOROS_LAIR_SKIP_EVENTS
+    if portal_start:
+        default += WU_SHI_SKIP_EVENTS
 
     return default
 
@@ -533,11 +549,14 @@ ABILITY_ANIMATION = 0x10
 # generation would place items behind a door the client refuses to open.
 TOURNAMENT_VICTORY_AMOUNT = 5
 
-WU_SHI_START_AREA = 0x67
-
 DEFAULT_START_AREA = 0x60
 
 PORTAL_START_AREA = 0xc0
+
+PORTAL_MAP = 0xc0
+# Number of triggers in the portal room's script; checked before touching its trigger table
+# so the gate never writes into another room's triggers.
+PORTAL_TRIGGER_COUNT = 0x73
 
 MAIN_MENU_NEW_GAME_OPTION = 0
 

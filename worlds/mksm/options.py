@@ -105,13 +105,16 @@ class SkipTutorial(Toggle):
     display_name = "Skip Tutorial"
 
 
-class WuShiStart(Toggle):
+class PortalStart(Toggle):
     """
-    If on, when pressing new game in the main menu, the game will start in Wu-Shi instead of Goro's Lair.
+    If on, when pressing new game in the main menu, the game will start in the Portal instead of Goro's Lair.
+    The bridge that leads to Wu-Shi will be locked behind an item.
+    If shopsanity is off the game will give you a free check so you can have something to do.
     You can get to Goro's Lair from Wu-Shi after getting the fist of ruin ability.
+
     This option allows for faster starts and more varied seeds.
     """
-    display_name = "Wu-Shi Academy start"
+    display_name = "Portal start"
 
 
 class RandomizeTournamentVictories(DefaultOnToggle):
@@ -137,7 +140,7 @@ class MKSMOptions(PerGameCommonOptions):
     boss_goal: BossGoal
     fatalitysanity: Fatalitysanity
     shopsanity: Shopsanity
-    wu_shi_start: WuShiStart
+    portal_start: PortalStart
     skip_tutorial: SkipTutorial
     randomize_tournament_victories: RandomizeTournamentVictories
     mana_upgrades: ManaUpgrades
@@ -148,7 +151,7 @@ OPTION_GROUPS = [
         Character,
         RandomizeTournamentVictories,
         SkipTutorial,
-        WuShiStart,
+        PortalStart,
     ]),
     OptionGroup("Goals", [
         RedKoinPercent,

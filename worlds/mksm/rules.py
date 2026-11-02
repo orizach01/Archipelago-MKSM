@@ -7,7 +7,7 @@ from rule_builder.options import OptionFilter
 from rule_builder.rules import Has, Rule
 from .consts import TOURNAMENT_VICTORY_AMOUNT
 from .locations import FINISHING_MOVES_LOCATIONS
-from .options import BossGoal, Shopsanity, RandomizeTournamentVictories
+from .options import BossGoal, Shopsanity, RandomizeTournamentVictories, PortalStart
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -44,6 +44,10 @@ TOURNAMENT_VICTORY_RULE = Has("Tournament victory",
 BOSSES_RULE = KITANA & REPTILE & BARAKA & GORO & SCORPION & OptionFilter(RandomizeTournamentVictories, False)
 
 FOUNDRY_RULE = (TOURNAMENT_VICTORY_RULE | BOSSES_RULE) & (WALL_CLIMB & WALL_RUN & DOUBLE_JUMP)
+
+WU_SHI_RULE = Has("Wu-Shi access",
+                  options=[OptionFilter(PortalStart, True)],
+                  filtered_resolution=True)
 
 
 def set_all_rules(world: MKSMWorld) -> None:
@@ -173,8 +177,8 @@ def connect_regions(world: MKSMWorld) -> None:
     netherrealm = world.get_region("Netherrealm")
     foundry = world.get_region("Foundry")
 
-    if world.options.wu_shi_start:
-        menu.connect(wu_shi)
+    if world.options.portal_start:
+        menu.connect(portal_1)
     else:
         menu.connect(goros_lair_1)
 
@@ -190,7 +194,7 @@ def connect_regions(world: MKSMWorld) -> None:
     wu_shi.connect(portal_1)
     wu_shi.connect(goros_lair_2, rule=FIST_OF_RUIN)
 
-    portal_1.connect(wu_shi)
+    portal_1.connect(wu_shi, rule=WU_SHI_RULE)
     portal_1.connect(portal_2)
 
     portal_2.connect(netherrealm, rule=SWING & (DOUBLE_JUMP | WALL_RUN))

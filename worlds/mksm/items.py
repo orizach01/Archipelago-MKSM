@@ -32,6 +32,7 @@ ITEM_NAME_TO_ID = {
     f"{FILLER_EXP} EXP": 20,
     "Tournament victory": 21,
     "Mana upgrade": 22,
+    "Wu-Shi access": 23,
 }
 
 DEFAULT_ITEM_CLASSIFICATIONS = {
@@ -44,6 +45,7 @@ DEFAULT_ITEM_CLASSIFICATIONS = {
     "Double Jump": ItemClassification.progression,
     "Blood bar": ItemClassification.progression,
     "Tournament victory": ItemClassification.progression,
+    "Wu-Shi access": ItemClassification.progression,
     "Red Koin": ItemClassification.progression_deprioritized_skip_balancing,
     "Combo 1": ItemClassification.useful,
     "Combo 2": ItemClassification.useful,
@@ -101,6 +103,9 @@ def create_all_items(world: MKSMWorld) -> None:
 
     if world.options.randomize_tournament_victories:
         itempool += [world.create_item("Tournament victory") for _ in range(TOURNAMENT_VICTORY_AMOUNT)]
+
+    if world.options.portal_start:
+        itempool.append(world.create_item("Wu-Shi access"))
 
     itempool += [world.create_item("Blood bar") for _ in range(BLOOD_BAR_AMOUNT)]
 

@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from NetUtils import ClientStatus
 from .consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
     FOUNDRY_DOOR_OPEN_EVENT, TOURNAMENT_VICTORY_AMOUNT, \
-    FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events, MAIN_MENU_NEW_GAME_OPTION, WU_SHI_START_AREA, DEFAULT_START_AREA, \
+    FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events, PORTAL_START_AREA, DEFAULT_START_AREA, \
     MANA_UPGRADE_AMOUNT, HEALTH_UPGRADE_AMOUNT
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
@@ -63,7 +63,8 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         sync_foundry_door(ctx)
         clear_exp(ctx)
 
-        set_wushi_start(ctx)
+        set_portal_start(ctx)
+        gate_wu_shi_bridge(ctx)
         set_character(ctx)
         set_move_upgrades(ctx)
         set_abilities(ctx)
@@ -500,9 +501,19 @@ async def check_final_boss(ctx: MKSMContext):
         await ctx.check_locations([LOCATION_NAME_TO_ID[FINAL_BOSS_LOCATION]])
 
 
-def set_wushi_start(ctx: MKSMContext):
-    area = WU_SHI_START_AREA if ctx.slot_data["wu_shi_start"] else DEFAULT_START_AREA
+def set_portal_start(ctx: MKSMContext):
+    area = PORTAL_START_AREA if ctx.slot_data["portal_start"] else DEFAULT_START_AREA
     ctx.game_interface.set_new_game_map(area)
+
+
+def gate_wu_shi_bridge(ctx: MKSMContext):
+    if not ctx.slot_data["portal_start"] or ctx.game_state != GameState.GAMEPLAY:
+        return
+
+    if any(item.item == ITEM_NAME_TO_ID["Wu-Shi access"] for item in ctx.items_received):
+        return
+
+    ctx.game_interface.block_wu_shi_bridge()
 
 
 def set_mana_upgrades(ctx: MKSMContext):
