@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 from NetUtils import ClientStatus
 from .consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
     FOUNDRY_DOOR_OPEN_EVENT, TOURNAMENT_VICTORY_AMOUNT, \
-    FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events, MAIN_MENU_NEW_GAME_OPTION, WU_SHI_START_AREA, \
+    FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events, MAIN_MENU_NEW_GAME_OPTION, WU_SHI_START_AREA, DEFAULT_START_AREA, \
     MANA_UPGRADE_AMOUNT, HEALTH_UPGRADE_AMOUNT
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
@@ -501,11 +501,8 @@ async def check_final_boss(ctx: MKSMContext):
 
 
 def set_wushi_start(ctx: MKSMContext):
-    if not ctx.slot_data["wu_shi_start"]:
-        return
-
-    if ctx.game_state == GameState.INTRO_FMV:
-        ctx.game_interface.set_starting_area(WU_SHI_START_AREA)
+    area = WU_SHI_START_AREA if ctx.slot_data["wu_shi_start"] else DEFAULT_START_AREA
+    ctx.game_interface.set_new_game_map(area)
 
 
 def set_mana_upgrades(ctx: MKSMContext):

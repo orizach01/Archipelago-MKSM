@@ -222,6 +222,13 @@ ADDRESSES = {
         "STARTING_AREA": 0x5e2fc4,
         "MAIN_MENU_OPTION": 0x5ca2ac,
 
+        "NEW_GAME_MAP_INSTS": (
+            (0x131090, 0x24040000),
+            (0x12FE8C, 0x24050000),
+            (0x141BA4, 0x24030000),
+            (0x141BFC, 0x24030000),
+        ),
+
         "MAX_MANA": (
             0x169838,
             0x18afe4,
@@ -527,6 +534,10 @@ ABILITY_ANIMATION = 0x10
 TOURNAMENT_VICTORY_AMOUNT = 5
 
 WU_SHI_START_AREA = 0x67
+
+DEFAULT_START_AREA = 0x60
+
+PORTAL_START_AREA = 0xc0
 
 MAIN_MENU_NEW_GAME_OPTION = 0
 

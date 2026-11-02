@@ -445,6 +445,10 @@ class MKSMInterface(GameInterface):
         addr = self.addresses.get("STARTING_AREA")
         self._write32(addr, area)
 
+    def set_new_game_map(self, area: int):
+        for addr, base in self.addresses.get("NEW_GAME_MAP_INSTS"):
+            self._write32(addr, base | (area & 0xFFFF))
+
     def set_max_mana(self, mana_upgrades: int):
         level = min(mana_upgrades, MANA_UPGRADE_AMOUNT)
         for addr in self.addresses.get("MAX_MANA"):
