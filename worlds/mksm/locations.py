@@ -65,7 +65,7 @@ REGION_NAME_LOCATIONS = {
         "LF: koin near the giant snake head": 25,
         "LF: koin from shooting the closed eye": 26,
         "LF: Forest health upgrade": 27,
-        "LF: koin in the brutality room": 28,
+        "LF: koin from breaking the fast statues": 28,
         "LF: koin in coop 1": 108,
         "LF: koin in coop 2": 109,
     },

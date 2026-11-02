@@ -93,7 +93,7 @@ ADDRESSES = {
             "LF: koin from defeating Mileena": {0x005d82a6: [0]},
 
             # Forest - Reptile arena
-            "LF: koin in the brutality room": {0x005d82a1: [5, 6, 7], 0x005d82a8: [2, 3]},
+            "LF: koin from breaking the fast statues": {0x005d82a1: [5, 6, 7], 0x005d82a8: [2, 3]},
 
             # Wasteland 1
             "W: koin from impaling an enemy on the big spike": {
@@ -174,8 +174,8 @@ ADDRESSES = {
             "WSA: koin after the bridge": {0x005d82ae: [0]},  # unlockable 17, map 0x6e secret_end (confirmed in game)
             "P: koin above the platform": {0x005d82ae: [1]},  # unlockable 19, map 0xc0 secret_ko_op
             "EM: koin from breaking the statue": {0x005d82ae: [2]},  # unlockable 27, map 0xc7 _d_stand
-            "LF: koin in coop 1": {0x005d82ae: [3]},  # unlockable 43, map 0x93 secret_stand
-            "LF: koin in coop 2": {0x005d82ae: [5]},  # unlockable 44, map 0x93 secret_rock
+            "LF: koin near the waterfall": {0x005d82ae: [3]},  # unlockable 43, map 0x93 secret_stand
+            "LF: koin behind the rock": {0x005d82ae: [5]},  # unlockable 44, map 0x93 secret_rock
         },
         "GAME_STATE": 0x5e1650,
         "EXP": 0xc2e224,
