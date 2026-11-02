@@ -42,12 +42,12 @@ class Character(Choice):
 
 class RedKoinPercent(Range):
     """
-    There are 60 Red Koins in the item pool.
-    Choose what percent of the 60 Red Koins are needed for goal.
+    There are 68 Red Koins in the item pool.
+    Choose what percent of the 68 Red Koins are needed for goal.
 
     0 - the goal will be beating the boss goal only, will turn Red Koins to filler.
     80 (default) - get at least 80% of all Red Koins AND beat the boss goal to win.
-    100 - get ALL 60 Red Koins AND beat the boss goal.
+    100 - get ALL 68 Red Koins AND beat the boss goal.
 
     There is a tracker in the pause menu that shows: current amount / needed for goal / total in the multiworld.
     """
@@ -109,7 +109,8 @@ class PortalStart(Toggle):
     """
     If on, when pressing new game in the main menu, the game will start in the Portal instead of Goro's Lair.
     The bridge that leads to Wu-Shi will be locked behind an item.
-    If shopsanity is off the game will give you a free check so you can have something to do.
+    The first check is the co-op Red Koin above the platform in the Portal, which the client makes reachable
+    in single player.
     You can get to Goro's Lair from Wu-Shi after getting the fist of ruin ability.
 
     This option allows for faster starts and more varied seeds.

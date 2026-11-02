@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from BaseClasses import Item, ItemClassification
 from .consts import CHARACTER_PURCHASE_AMOUNTS, HEALTH_UPGRADE_AMOUNT, BLOOD_BAR_AMOUNT, FILLER_EXP, \
-    TOURNAMENT_VICTORY_AMOUNT, MANA_UPGRADE_AMOUNT
+    TOURNAMENT_VICTORY_AMOUNT, MANA_UPGRADE_AMOUNT, RED_KOIN_AMOUNT
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -115,7 +115,7 @@ def create_all_items(world: MKSMWorld) -> None:
     diff = number_of_unfilled_locations - current_count
     diff = 0 if diff < 0 else diff
 
-    red_koin_count = min(diff, 60)
+    red_koin_count = min(diff, RED_KOIN_AMOUNT)
     itempool += [world.create_item("Red Koin") for _ in range(red_koin_count)]
     world.red_koin_amount = red_koin_count
 

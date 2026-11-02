@@ -65,6 +65,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
 
         set_portal_start(ctx)
         gate_wu_shi_bridge(ctx)
+        make_coop_single_player(ctx)
         set_character(ctx)
         set_move_upgrades(ctx)
         set_abilities(ctx)
@@ -504,6 +505,13 @@ async def check_final_boss(ctx: MKSMContext):
 def set_portal_start(ctx: MKSMContext):
     area = PORTAL_START_AREA if ctx.slot_data["portal_start"] else DEFAULT_START_AREA
     ctx.game_interface.set_new_game_map(area)
+
+
+def make_coop_single_player(ctx: MKSMContext):
+    if ctx.game_state != GameState.GAMEPLAY:
+        return
+
+    ctx.game_interface.make_coop_single_player()
 
 
 def gate_wu_shi_bridge(ctx: MKSMContext):

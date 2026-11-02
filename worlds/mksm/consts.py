@@ -121,7 +121,7 @@ ADDRESSES = {
             },
             "ST: koin above Baraka's entrance": {0x005d8293: [6, 7], 0x005d8294: [0], 0x005d82a9: [4]},
             "ST: koin from using all three death traps": {0x005d82ae: [4]},
-            "ST: koin from the broken statue": {0x005d828c: [0]},
+            "ST: koin from the broken statue": {0x005d828c: [0], 0x005d82a8: [2]},
             "ST: koin above the broken statue": {0x005d828a: [3], 0x005d8294: [6, 7], 0x005d8295: [0], 0x005d82a9: [6]},
             "ST: koin from a high button in the rolling spikes room": {0x005d828b: [7], 0x005d82a6: [3]},
             "ST: koin above the ceiling in the room with the hooks": {0x005d82a4: [7]},
@@ -153,15 +153,29 @@ ADDRESSES = {
             # Foundry
             "F: koin from wall jumping above the main room": {0x005d8295: [5]},
             "F: koin above the wood ceiling": {0x005d82a9: [7]},
-            "F: koin from breaking the big pot": {0x005d828d: [5, 6, 7], 0x005d828e: [0, 1], 0x005d8294: [4]},
+            "F: koin from breaking the big pot": {0x005d828d: [5, 6, 7], 0x005d828e: [0, 1], 0x005d8294: [4],
+                                                  0x005d82a9: [0]},
             "F: koin behind the fire": {0x005d829b: [1, 2, 3], 0x005d82a8: [6], 0x005d82aa: [1]},
             "F: koin from shooting the dragon koin behind the breakable wall": {
                 0x005d8297: [0], 0x005d829a: [6, 7], 0x005d82a2: [0, 1, 2, 3]
             },
-            "F: koin above the lava pit": {0x005d828a: [2], 0x005d8299: [4, 5, 6, 7], 0x005d829a: [0]},
+            "F: koin above the lava pit": {0x005d828a: [2], 0x005d8299: [4, 5, 6, 7], 0x005d829a: [0],
+                                           0x005d82a8: [3]},
             "F: koin from smash an enemy with the big hammers": {0x005d829c: [3, 4, 5, 6], 0x005d82a2: [4, 5, 6, 7]},
             "F: koin from breaking the pipe with the axe": {0x005d8296: [4, 5, 6, 7], 0x005d82a3: [0, 1, 2],
                                                             0x005d82a6: [6]},
+
+            # Co-op koins: the eight unlockables no entry above covers. Bits come from the
+            # game's unlockable table (0x579c60, one 0x1e-byte record per unlock number),
+            # the same source every entry above matches. Names are placeholders (area only).
+            "GL: koin behind the cage": {0x005d82ad: [6]},  # unlockable 6, map 0x63 secret_koop_1
+            "WSA: koin next to the boulders": {0x005d82ad: [7]},  # unlockable 11, map 0x67 secret_2play (istwoplayer)
+            "WSA: koin in the tree": {0x005d829e: [5, 6, 7], 0x005d829f: [0, 1, 2, 3, 4]},  # unlockable 18, map 0x6e secret_jump
+            "WSA: koin after the bridge": {0x005d82ae: [0]},  # unlockable 17, map 0x6e secret_end (confirmed in game)
+            "P: koin above the platform": {0x005d82ae: [1]},  # unlockable 19, map 0xc0 secret_ko_op
+            "EM: koin from breaking the statue": {0x005d82ae: [2]},  # unlockable 27, map 0xc7 _d_stand
+            "LF: koin in coop 1": {0x005d82ae: [3]},  # unlockable 43, map 0x93 secret_stand
+            "LF: koin in coop 2": {0x005d82ae: [5]},  # unlockable 44, map 0x93 secret_rock
         },
         "GAME_STATE": 0x5e1650,
         "EXP": 0xc2e224,
@@ -300,18 +314,9 @@ _DEFAULT_EVENT_ARRAY = [
     *_make_event(0x8e, 0x41),
     *_make_event(0x8e, 0x26),
 
-    # events that spawn xp and the red koin in the brutality room
-    # prevents needing to beat reptile to get that red koin
-    # only one of the events here actually spawns the red koin, I didn't bother checking which one is it
-    *_make_event(0x8e, 0x37),
-    *_make_event(0x8e, 0x64),
-    *_make_event(0x8e, 0x5d),
-    *_make_event(0x8e, 0x5e),
-    *_make_event(0x8e, 0x5f),
-    *_make_event(0x8e, 0x60),
-    *_make_event(0x8e, 0x61),
-    *_make_event(0x8e, 0x62),
-    *_make_event(0x8e, 0x63),
+    # The post-Reptile puzzle in the brutality room (_d_win04 0x37 -> red koin, exit, xp
+    # 0x64/0x5d-0x63) is no longer injected: SINGLE_PLAYER_TRIGGER_PATCHES removes its
+    # "Reptile defeated" requirement instead, so the puzzle has to be solved for the koin.
 ]
 
 MOON_KOIN_EVENTS = [
@@ -382,11 +387,96 @@ GOROS_LAIR_SKIP_EVENTS = [
     *_make_event(0x65, 0x4b),
     *_make_event(0x65, 0x2a),
     *_make_event(0x65, 0x2f),
+
+    *_make_event(0x64, 0x16),
+    *_make_event(0x64, 0x1c),
 ]
 
-# TODO this
 WU_SHI_SKIP_EVENTS = [
-
+    *_make_event(0x67, 0x14),
+    *_make_event(0x67, 0x13),
+    *_make_event(0x67, 0x2f),
+    *_make_event(0x67, 0x30),
+    *_make_event(0x67, 0x57),
+    *_make_event(0x67, 0x45),
+    *_make_event(0x67, 0x58),
+    *_make_event(0x67, 0x0b),
+    *_make_event(0x67, 0x49),
+    *_make_event(0x67, 0x59),
+    *_make_event(0x67, 0x5d),
+    *_make_event(0x67, 0x5a),
+    *_make_event(0x67, 0x12),
+    *_make_event(0x68, 0x54),
+    *_make_event(0x68, 0x6c),
+    *_make_event(0x68, 0x05),
+    *_make_event(0x68, 0x33),
+    *_make_event(0x68, 0x32),
+    *_make_event(0x68, 0x04),
+    *_make_event(0x68, 0x26),
+    *_make_event(0x68, 0x0d),
+    *_make_event(0x68, 0x27),
+    *_make_event(0x68, 0x55),
+    *_make_event(0x68, 0x2a),
+    *_make_event(0x68, 0x0e),
+    *_make_event(0x68, 0x1e),
+    *_make_event(0x68, 0x20),
+    *_make_event(0x68, 0x1d),
+    *_make_event(0x68, 0x1f),
+    *_make_event(0x68, 0x7e),
+    *_make_event(0x68, 0x6d),
+    *_make_event(0x68, 0x08),
+    *_make_event(0x68, 0x64),
+    *_make_event(0x68, 0x09),
+    *_make_event(0x68, 0x65),
+    *_make_event(0x68, 0x0a),
+    *_make_event(0x68, 0x66),
+    *_make_event(0x68, 0x0b),
+    *_make_event(0x68, 0x19),
+    *_make_event(0x68, 0x67),
+    *_make_event(0x68, 0x73),
+    *_make_event(0x6b, 0x3c),
+    *_make_event(0x6a, 0x16),
+    *_make_event(0x6a, 0x55),
+    *_make_event(0x6a, 0x62),
+    *_make_event(0x6a, 0x65),
+    *_make_event(0x6a, 0x67),
+    *_make_event(0x6a, 0x0a),
+    *_make_event(0x6a, 0x13),
+    *_make_event(0x6a, 0x60),
+    *_make_event(0x6a, 0x61),
+    *_make_event(0x6a, 0x14),
+    *_make_event(0x6a, 0x15),
+    *_make_event(0x6a, 0x63),
+    *_make_event(0x6a, 0x64),
+    *_make_event(0x6a, 0x3c),
+    *_make_event(0x6a, 0x02),
+    *_make_event(0x6a, 0x1a),
+    *_make_event(0x6a, 0x52),
+    *_make_event(0x6a, 0x53),
+    *_make_event(0x6a, 0x42),
+    *_make_event(0x6a, 0x03),
+    *_make_event(0x6a, 0x1e),
+    *_make_event(0x6a, 0x56),
+    *_make_event(0x6a, 0x57),
+    *_make_event(0x6a, 0x43),
+    *_make_event(0x6a, 0x27),
+    *_make_event(0x6a, 0x1f),
+    *_make_event(0x6a, 0x44),
+    *_make_event(0x6a, 0x04),
+    *_make_event(0x6a, 0x20),
+    *_make_event(0x6a, 0x41),
+    *_make_event(0x6a, 0x26),
+    *_make_event(0x6a, 0x21),
+    *_make_event(0x6a, 0x19),
+    *_make_event(0x6a, 0x1b),
+    *_make_event(0x6a, 0x1c),
+    *_make_event(0x6a, 0x1d),
+    *_make_event(0x6a, 0x51),
+    *_make_event(0x6a, 0x58),
+    *_make_event(0x6a, 0x4c),
+    *_make_event(0x6b, 0x29),
+    *_make_event(0x6b, 0x3d),
+    *_make_event(0x6b, 0x43),
 ]
 
 WASTELAND_EVENTS = [
@@ -549,6 +639,9 @@ ABILITY_ANIMATION = 0x10
 # generation would place items behind a door the client refuses to open.
 TOURNAMENT_VICTORY_AMOUNT = 5
 
+# Red Koins in the game, including the 8 co-op ones; also the most that go in the item pool
+RED_KOIN_AMOUNT = 68
+
 DEFAULT_START_AREA = 0x60
 
 PORTAL_START_AREA = 0xc0
@@ -557,6 +650,62 @@ PORTAL_MAP = 0xc0
 # Number of triggers in the portal room's script; checked before touching its trigger table
 # so the gate never writes into another room's triggers.
 PORTAL_TRIGGER_COUNT = 0x73
+# The Wu-Shi bridge trigger's command count before the client blocks it
+WU_SHI_BRIDGE_CMD_COUNT = 5
+
+# Room trigger table (see TRIGGER_COUNT): entry i is at TRIGGER_TABLE + i * TRIGGER_SIZE.
+TRIGGER_TABLE = 0x738a70
+TRIGGER_SIZE = 0x110
+# Fields of a trigger entry. A trigger fires only when ALL its conditions hold.
+TRIGGER_CMD_COUNT = 0x14
+TRIGGER_COND_COUNT = 0x60
+
+# Co-op spots: a trigger that needs both players' switches (events 28 and 29 complete).
+# Setting its condition count to 1 leaves only the first condition, so one switch is
+# enough. map -> (room's trigger count, [trigger indexes])
+# The first condition decides which switch still works: switch 1 (event 28) everywhere,
+# except the portal platform (0xc0 trigger 0x49), which listens to switch 2 (event 29).
+COOP_TRIGGERS = {
+    0x64: (66, [0x16, 0x1c]),   # _d_2playdoor, _d_2pdoorr
+    0x68: (130, [0x35]),        # _d_2pswitch
+    0x8e: (102, [0x3a]),        # _d_2pdoor_o
+    0xc0: (115, [0x49, 0x70]),  # _d_2p_compl (platforms), _d_exp_2psec (1000 exp)
+    0xc5: (39, [0x07]),         # _d_2playcomp
+}
+COOP_COND_COUNT = 2
+
+# Triggers whose only condition is "istwoplayer": removing the condition (count 0, a
+# trigger with no conditions always passes) lets them fire in single player.
+# map -> (room's trigger count, [trigger indexes])
+TWO_PLAYER_ONLY_TRIGGERS = {
+    0x67: (96, [0x3c]),  # Wu-Shi _d_2p_sec_trig: spawnunlocknum 11, the co-op red koin
+}
+TWO_PLAYER_ONLY_COND_COUNT = 1
+
+# In the portal room, _d_one_player (trigger 0x42) hides the co-op platforms and turns off
+# their collision when playing alone. Emptying its command list keeps them usable.
+SINGLE_PLAYER_TRIGGER_PATCHES = {
+    # map -> (room's trigger count, [(trigger index, field, original value, new value)])
+    0xc0: (115, [
+        (0x42, TRIGGER_CMD_COUNT, 5, 0),  # _d_one_player: would hide the co-op platforms
+    ]),
+    # Wu-Shi co-op room entrance. The co-op door (_d_2pswitch, in COOP_TRIGGERS) also
+    # activates these. Tested together in PCSX2 (2026-11-03): the X prompt appears and
+    # leads into the co-op room (map 0x6e). Which of them was the actual blocker is not
+    # known yet.
+    0x68: (130, [
+        (0x75, TRIGGER_CMD_COUNT, 1, 0),   # _d_2p_nogo: blocks the exit for one player
+        (0x37, TRIGGER_COND_COUNT, 4, 0),  # _d_to111: exit to map 0x6e, needed all 4 chain pots
+        (0x38, TRIGGER_COND_COUNT, 4, 0),  # _d_to01t: its X prompt, same 4 pots
+    ]),
+    # Forest brutality room: the post-Reptile statue puzzle (pattern 4, its win spawns the
+    # red koin) normally needs event 83 (Reptile defeated). Drop that so it can be played
+    # any time; the earlier brutality puzzles are skipped by injected events.
+    0x8e: (102, [
+        (0x36, TRIGGER_COND_COUNT, 1, 0),  # _d_puzzle04
+        (0x5c, TRIGGER_COND_COUNT, 1, 0),  # _d_puz04b: starts pattern 4
+    ]),
+}
 
 MAIN_MENU_NEW_GAME_OPTION = 0
 

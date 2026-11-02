@@ -5,7 +5,9 @@ from typing import Optional, Dict
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
     NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII, \
     ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, TOURNAMENT_VICTORY_AMOUNT, \
-    MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES, PORTAL_MAP, PORTAL_TRIGGER_COUNT
+    MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES, PORTAL_MAP, PORTAL_TRIGGER_COUNT, WU_SHI_BRIDGE_CMD_COUNT, TRIGGER_TABLE, \
+    TRIGGER_SIZE, TRIGGER_CMD_COUNT, TRIGGER_COND_COUNT, COOP_TRIGGERS, COOP_COND_COUNT, SINGLE_PLAYER_TRIGGER_PATCHES, \
+    TWO_PLAYER_ONLY_TRIGGERS, TWO_PLAYER_ONLY_COND_COUNT
 
 from .pcsx2_interface.pine import Pine
 
@@ -458,7 +460,37 @@ class MKSMInterface(GameInterface):
             return
         if self._read32(self.addresses.get("TRIGGER_COUNT")) != PORTAL_TRIGGER_COUNT:
             return
-        self._write32(self.addresses.get("WU_SHI_BRIDGE_CMD_COUNT"), 0)
+        addr = self.addresses.get("WU_SHI_BRIDGE_CMD_COUNT")
+        # Only overwrite the untouched bridge trigger. Any other value means it's already
+        # blocked or the memory holds something else right now (e.g. the room is reloading).
+        if self._read32(addr) != WU_SHI_BRIDGE_CMD_COUNT:
+            return
+        self._write32(addr, 0)
+
+    def _set_trigger_field(self, index: int, field: int, expected: int, value: int) -> None:
+        # Same rule as the bridge gate: only overwrite the untouched original value.
+        addr = TRIGGER_TABLE + index * TRIGGER_SIZE + field
+        if self._read32(addr) == expected:
+            self._write32(addr, value)
+
+    def make_coop_single_player(self) -> None:
+        current_map = self.get_current_map()
+        trigger_count = self._read32(self.addresses.get("TRIGGER_COUNT"))
+
+        coop = COOP_TRIGGERS.get(current_map)
+        if coop is not None and trigger_count == coop[0]:
+            for index in coop[1]:
+                self._set_trigger_field(index, TRIGGER_COND_COUNT, COOP_COND_COUNT, 1)
+
+        two_player = TWO_PLAYER_ONLY_TRIGGERS.get(current_map)
+        if two_player is not None and trigger_count == two_player[0]:
+            for index in two_player[1]:
+                self._set_trigger_field(index, TRIGGER_COND_COUNT, TWO_PLAYER_ONLY_COND_COUNT, 0)
+
+        patches = SINGLE_PLAYER_TRIGGER_PATCHES.get(current_map)
+        if patches is not None and trigger_count == patches[0]:
+            for index, field, original, new in patches[1]:
+                self._set_trigger_field(index, field, original, new)
 
     def set_max_mana(self, mana_upgrades: int):
         level = min(mana_upgrades, MANA_UPGRADE_AMOUNT)

@@ -18,6 +18,7 @@ REGION_NAME_LOCATIONS = {
         "GL: koin on the ledge after the pit": 4,
         "GL: koin from the chandelier": 5,
         "GL: koin above the breakable door": 6,
+        "GL: koin behind the cage": 102,
     },
     "Goro's Lair - Boss arena": {
         "GL: Oni Warlord defeated": 7,
@@ -31,7 +32,10 @@ REGION_NAME_LOCATIONS = {
         "WSA: koin after the tree branch swing": 11,
         "WSA: koin after the bamboo swing": 12,
         "WSA: koin on a high wall near the lava pots": 13,
-        "WSA: wu-shi academy health upgrade": 14
+        "WSA: wu-shi academy health upgrade": 14,
+        "WSA: koin next to the boulders": 103,
+        "WSA: koin in the tree": 104,
+        "WSA: koin after the bridge": 105,
     },
     "Wu-Shi - Ermac arena": {
         "WSA: koin from defeating Ermac": 15,
@@ -42,6 +46,9 @@ REGION_NAME_LOCATIONS = {
     },
     "Wu-Shi - Wall Run area": {
         "WSA: wall run obtained": 18
+    },
+    "Portal 1": {
+        "P: koin above the platform": 106,
     },
     "Portal 2": {
         "P: koin from performing a fatality on the dragon symbol": 19
@@ -59,6 +66,8 @@ REGION_NAME_LOCATIONS = {
         "LF: koin from shooting the closed eye": 26,
         "LF: Forest health upgrade": 27,
         "LF: koin in the brutality room": 28,
+        "LF: koin in coop 1": 108,
+        "LF: koin in coop 2": 109,
     },
     "Forest - Bridges": {
         "LF: koin from shooting at dragon koin": 29,
@@ -118,6 +127,7 @@ REGION_NAME_LOCATIONS = {
         "EM: koin from shooting the dragon koin behind the window": 67,
         "EM: koin from impaling enemies on the statue's hands": 68,
         "EM: koin above the ceiling in the multality room": 69,
+        "EM: koin from breaking the statue": 107,
     },
     "Monastery - Kitana arena": {
         "EM: koin from the Kitana Mileena and Jade arena": 70,
