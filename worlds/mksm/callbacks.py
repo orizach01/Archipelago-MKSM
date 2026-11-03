@@ -18,10 +18,7 @@ from .consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, ANI
     MANA_UPGRADE_AMOUNT, HEALTH_UPGRADE_AMOUNT, SMOKE_MISSIONS, SMOKE_FLAGS_POLL_SECONDS, SAVE_MARKER_MAGIC
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
-from .options import BossGoal, Character
-
-VS_CHARACTERS = (Character.option_baraka, Character.option_kitana,
-                 Character.option_reptile, Character.option_johnny_cage)
+from .options import BossGoal
 
 FINAL_BOSS_LOCATION = "F: Shao Kahn defeated"
 
@@ -331,13 +328,6 @@ def _received_upgrade_items(ctx: MKSMContext, label: str) -> int:
     return sum(item.item == ITEM_NAME_TO_ID[f"{label} special upgrade"] for item in ctx.items_received)
 
 
-def _move_starts_locked(ctx: MKSMContext, key: str) -> bool:
-    if not ctx.slot_data["lock_special_moves"]:
-        return False
-    # VS characters have no items for these moves (items.py), so they stay usable
-    return key == "r2" or ctx.slot_data["character"] not in VS_CHARACTERS
-
-
 def _upgrades_from_checked(ctx: MKSMContext):
     """What the pause menu should show: what the server says you have purchased."""
     # +1: the base move is always shown as owned here, otherwise the shop won't sell its upgrades
@@ -358,7 +348,7 @@ def _upgrades_from_received(ctx: MKSMContext):
     counts = {}
     for key, (label, _) in _UPGRADE_TIERS.items():
         level = _received_upgrade_items(ctx, label)
-        if not _move_starts_locked(ctx, key):
+        if not ctx.slot_data["lock_special_moves"]:
             level += 1
         counts[key] = min(level, 6)
     combos = [any(item.item == ITEM_NAME_TO_ID[f"Combo {i}"] for item in ctx.items_received)
@@ -412,11 +402,10 @@ def lock_special_moves_vanilla_shop(ctx: MKSMContext) -> None:
     levels = {}
     for key, (label, _) in _UPGRADE_TIERS.items():
         level = getattr(current, key)
-        if _move_starts_locked(ctx, key):
-            if _received_upgrade_items(ctx, label) == 0:
-                level = 0
-            elif level == 0:
-                level = 1
+        if _received_upgrade_items(ctx, label) == 0:
+            level = 0
+        elif level == 0:
+            level = 1
         levels[key] = level
 
     if any(levels[key] != getattr(current, key) for key in levels):

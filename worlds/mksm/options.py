@@ -109,7 +109,7 @@ class LockSpecialMoves(DefaultOnToggle):
     If on, special moves start locked and one extra special upgrade item per move is shuffled in the item pool.
     The first special upgrade item you get for a move unlocks it, each further one upgrades it.
     With shopsanity off, the first item unlocks the move and its upgrades can then be bought in the shop like normal.
-    VS mode characters only have R2 locked.
+    VS mode characters get only the unlock items for Square, Triangle and Circle, since they start with them fully upgraded.
     """
     display_name = "Lock Special Moves"
 

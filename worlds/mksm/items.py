@@ -96,13 +96,14 @@ def create_all_items(world: MKSMWorld) -> None:
             itempool += [world.create_item("Square special upgrade") for _ in range(amounts.square + unlock)]
             itempool += [world.create_item("Triangle special upgrade") for _ in range(amounts.triangle + unlock)]
             itempool += [world.create_item("Circle special upgrade") for _ in range(amounts.circle + unlock)]
+        elif unlock:
+            # VS characters start with these moves fully upgraded, so they only get the unlocks
+            itempool += [world.create_item(f"{move} special upgrade") for move in ("Square", "Triangle", "Circle")]
 
         itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2 + unlock)]
     elif unlock:
         # upgrades are bought in the shop like vanilla, only the unlocks are items
-        if not character.is_vs():
-            itempool += [world.create_item(f"{move} special upgrade") for move in ("Square", "Triangle", "Circle")]
-        itempool.append(world.create_item("R2 special upgrade"))
+        itempool += [world.create_item(f"{move} special upgrade") for move in ("Square", "Triangle", "Circle", "R2")]
 
     itempool += [world.create_item("Health upgrade") for _ in range(HEALTH_UPGRADE_AMOUNT)]
 
