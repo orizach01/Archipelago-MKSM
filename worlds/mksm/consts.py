@@ -218,6 +218,7 @@ ADDRESSES = {
         "TIME_FORMAT_STRING": 0x5777c0,  # 14 spaces then NULL
         "RED_KOIN_STRING": 0xc47d00,
         "GAME_TIME_STRING": 0xc47b80,
+        "SMOKE_MISSIONS_STRING": 0xc47c80, # 17 spaces then NULL
 
         "CURRENT_CHARACTER": 0xc2974c,
 
@@ -672,6 +673,21 @@ SMOKE_CHARACTER_BLOCKS = 8
 # How often to read the smoke flags (seconds); each read is several emulator round-trips
 SMOKE_FLAGS_POLL_SECONDS = 2.0
 
+# Smoke's missions also depend on state outside the event log, in the save object. The
+# autosave stores it next to the event log and restores it with it (see get_smoke_state):
+#  - the smoke flag word of every character block (accepted/completed bits)
+#  - the game events the missions set and check, from the table of 32-bit flags at
+#    save object + GAME_EVENTS_OFFSET + event * 4
+GAME_EVENTS_OFFSET = 0x4874
+GAME_EVENT_COUNT = 200
+SMOKE_GAME_EVENTS = (
+    12, 13, 14, 15, 16, 17,  # mission 1: accepted, done, the four smoke markers
+    18, 19,  # mission 2: accepted, done
+    92, 93, 94, 98, 99,  # mission 3: traps, accepted, done
+    105, 106, 107, 108,  # mission 4: accepted, done, the two portal smokes
+    114, 115,  # mission 5: accepted, done
+)
+
 PORTAL_MAP = 0xc0
 # Number of triggers in the portal room's script; checked before touching its trigger table
 # so the gate never writes into another room's triggers.
@@ -708,13 +724,12 @@ TWO_PLAYER_ONLY_TRIGGERS = {
 }
 TWO_PLAYER_ONLY_COND_COUNT = 1
 
-# In the portal room, _d_one_player (trigger 0x42) hides the co-op platforms and turns off
-# their collision when playing alone. Emptying its command list keeps them usable.
+# One-off trigger patches that make co-op content usable in single player.
 SINGLE_PLAYER_TRIGGER_PATCHES = {
     # map -> (room's trigger count, [(trigger index, field, original value, new value)])
-    0xc0: (115, [
-        (0x42, TRIGGER_CMD_COUNT, 5, 0),  # _d_one_player: would hide the co-op platforms
-    ]),
+    # Portal room: _d_one_player (trigger 0x42) is deliberately left alone, so the co-op-only
+    # objects stay hidden in single player. Patching it raced the trigger (it fires as the
+    # room loads), so the objects only showed up sometimes.
     # Wu-Shi co-op room entrance. The co-op door (_d_2pswitch, in COOP_TRIGGERS) also
     # activates these. Tested together in PCSX2 (2026-11-03): the X prompt appears and
     # leads into the co-op room (map 0x6e). Which of them was the actual blocker is not

@@ -5,9 +5,11 @@ from typing import Optional, Dict
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
     NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII, \
     ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, TOURNAMENT_VICTORY_AMOUNT, \
-    MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES, PORTAL_MAP, PORTAL_TRIGGER_COUNT, WU_SHI_BRIDGE_CMD_COUNT, TRIGGER_TABLE, \
+    MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES, PORTAL_MAP, PORTAL_TRIGGER_COUNT, WU_SHI_BRIDGE_CMD_COUNT, \
+    TRIGGER_TABLE, \
     TRIGGER_SIZE, TRIGGER_CMD_COUNT, TRIGGER_COND_COUNT, COOP_TRIGGERS, COOP_COND_COUNT, SINGLE_PLAYER_TRIGGER_PATCHES, \
     SMOKE_MISSIONS, SMOKE_FLAGS_OFFSET, SMOKE_CHARACTER_STRIDE, SMOKE_CHARACTER_BLOCKS, \
+    GAME_EVENTS_OFFSET, GAME_EVENT_COUNT, SMOKE_GAME_EVENTS, \
     TWO_PLAYER_ONLY_TRIGGERS, TWO_PLAYER_ONLY_COND_COUNT
 
 from .pcsx2_interface.pine import Pine
@@ -197,6 +199,13 @@ class MKSMInterface(GameInterface):
         total_events_addr = self.addresses.get("TOTAL_EVENTS")
         expected_count = len(event_data) // EVENT_RECORD_SIZE
 
+        # Never write past the game's log: a longer buffer would overwrite TOTAL_EVENTS and
+        # whatever game data follows it.
+        if len(event_data) > EVENT_LOG_SIZE:
+            self.logger.warning(f"Refusing to write {len(event_data)} bytes of events "
+                                f"(the game's log holds {EVENT_LOG_SIZE}).")
+            return
+
         # clear_events calls this every non-gameplay tick with the same server array, so
         # the waste is re-issuing an identical write, not the size of it. Skip when the
         # array already holds exactly this and the game hasn't touched the count since:
@@ -225,7 +234,8 @@ class MKSMInterface(GameInterface):
         if self._event_block_cache is not None and self._event_block_count == total_events:
             return self._event_block_cache
 
-        total_bytes = total_events * EVENT_RECORD_SIZE
+        # A garbage count must never make us read past the log into unrelated game memory
+        total_bytes = min(total_events * EVENT_RECORD_SIZE, EVENT_LOG_SIZE)
         raw = self._read_bytes(self.addresses.get("EVENT_LOG_ARRAY"), total_bytes)
 
         # TOTAL_EVENTS occasionally reads back garbage/oversized (e.g. a boot/reset race) -
@@ -354,6 +364,12 @@ class MKSMInterface(GameInterface):
         game_time_str = f"TOURNAMENT VICTORIES: {have} / {TOURNAMENT_VICTORY_AMOUNT}\0"
         self._write_bytes(game_time_addr, bytes(game_time_str, encoding="ASCII"))
 
+    def set_smoke_string(self, have):
+        have = min(have, 5)
+        smoke_str_addr = self.addresses.get("SMOKE_MISSIONS_STRING")
+        smoke_missions_str = f"SMOKE MISSIONS:                 {have} / 5\0"
+        self._write_bytes(smoke_str_addr, bytes(smoke_missions_str, encoding="ASCII"))
+
     def set_character(self, current_character_option):
         character_value = CHARACTER_OPTION_TO_VALUE_IN_GAME[current_character_option]
         character_addr = self.addresses.get("CURRENT_CHARACTER")
@@ -418,7 +434,10 @@ class MKSMInterface(GameInterface):
     def force_ui(self):
         inst_addr = self.addresses.get("FORCE_UI_INST")
 
-        self._write32(inst_addr, 0)
+        # Writing game code makes PCSX2 throw away its recompiled code; this runs every
+        # tick, so only write when the instruction isn't already patched.
+        if self._read32(inst_addr) != 0:
+            self._write32(inst_addr, 0)
 
     def set_foundry_door_flag(self, value: int) -> None:
         self._write8(self.addresses.get("FOUNDRY_DOOR_FLAG"), value)
@@ -450,7 +469,11 @@ class MKSMInterface(GameInterface):
 
     def set_new_game_map(self, area: int):
         for addr, base in self.addresses.get("NEW_GAME_MAP_INSTS"):
-            self._write32(addr, base | (area & 0xFFFF))
+            instruction = base | (area & 0xFFFF)
+            # Writing game code makes PCSX2 throw away its recompiled code, so only write
+            # when the instruction actually differs (this runs every tick).
+            if self._read32(addr) != instruction:
+                self._write32(addr, instruction)
 
     def get_current_map(self) -> int:
         # STARTING_AREA is also the current map once in game
@@ -468,19 +491,60 @@ class MKSMInterface(GameInterface):
             return
         self._write32(addr, 0)
 
-    def get_completed_smoke_missions(self) -> set[int]:
-        """Mission indexes (0-4) whose "complete" bit is set in any character's smoke
-        block. Read-only: the game owns this state."""
+    def _save_object(self) -> int | None:
+        """Address of the save/progress object, or None if the pointer isn't valid yet."""
         save = self._read32(self.addresses.get("SAVE_OBJECT_POINTER"))
-        end = SMOKE_FLAGS_OFFSET + SMOKE_CHARACTER_BLOCKS * SMOKE_CHARACTER_STRIDE
+        end = max(SMOKE_FLAGS_OFFSET + SMOKE_CHARACTER_BLOCKS * SMOKE_CHARACTER_STRIDE,
+                  GAME_EVENTS_OFFSET + GAME_EVENT_COUNT * 4)
         if not 0x100000 <= save < 0x2000000 - end:
-            return set()  # no save object yet, or not a valid EE address
+            return None
+        return save
+
+    def _smoke_flag_addresses(self, save: int) -> list[int]:
+        return [save + SMOKE_FLAGS_OFFSET + block * SMOKE_CHARACTER_STRIDE
+                for block in range(SMOKE_CHARACTER_BLOCKS)]
+
+    def _smoke_event_addresses(self, save: int) -> list[int]:
+        return [save + GAME_EVENTS_OFFSET + event * 4 for event in SMOKE_GAME_EVENTS]
+
+    def get_completed_smoke_missions(self) -> set[int]:
+        """Mission indexes (0-4) whose "complete" bit is set in any character's smoke block."""
+        save = self._save_object()
+        if save is None:
+            return set()
 
         completed = set()
-        for block in range(SMOKE_CHARACTER_BLOCKS):
-            flags = self._read32(save + SMOKE_FLAGS_OFFSET + block * SMOKE_CHARACTER_STRIDE)
+        for addr in self._smoke_flag_addresses(save):
+            flags = self._read32(addr)
             completed |= {n for n in range(len(SMOKE_MISSIONS)) if flags >> (2 * n) & 1}
         return completed
+
+    def get_smoke_state(self) -> dict | None:
+        """Everything Smoke's missions keep outside the event log: each character's smoke
+        word (bit 2n = mission n completed, bit 2n+1 = accepted) and the missions' game
+        events, in SMOKE_GAME_EVENTS order. None if the save object isn't there yet."""
+        save = self._save_object()
+        if save is None:
+            return None
+        return {
+            "flags": [self._read32(addr) for addr in self._smoke_flag_addresses(save)],
+            "events": [self._read32(addr) for addr in self._smoke_event_addresses(save)],
+        }
+
+    def set_smoke_state(self, state: dict) -> None:
+        """Writes back a state from get_smoke_state, touching only words that differ."""
+        save = self._save_object()
+        if save is None:
+            return
+        flags = state.get("flags") or []
+        events = state.get("events") or []
+        if len(flags) != SMOKE_CHARACTER_BLOCKS or len(events) != len(SMOKE_GAME_EVENTS):
+            self.logger.warning("Ignoring a saved smoke state with an unexpected layout.")
+            return
+        for addr, value in zip(self._smoke_flag_addresses(save) + self._smoke_event_addresses(save),
+                               flags + events):
+            if self._read32(addr) != value:
+                self._write32(addr, value)
 
     def _set_trigger_field(self, index: int, field: int, expected: int, value: int) -> None:
         # Same rule as the bridge gate: only overwrite the untouched original value.
@@ -510,4 +574,6 @@ class MKSMInterface(GameInterface):
     def set_max_mana(self, mana_upgrades: int):
         level = min(mana_upgrades, MANA_UPGRADE_AMOUNT)
         for addr in self.addresses.get("MAX_MANA"):
-            self._write16(addr, MAX_MANA_UPGRADE_VALUES[level])
+            # Game code, see force_ui: only write when the value changes
+            if self._read16(addr) != MAX_MANA_UPGRADE_VALUES[level]:
+                self._write16(addr, MAX_MANA_UPGRADE_VALUES[level])

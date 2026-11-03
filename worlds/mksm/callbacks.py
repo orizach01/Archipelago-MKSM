@@ -45,10 +45,8 @@ if TYPE_CHECKING:
 async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
-    # TODO smoke missions
     # TODO option to have special moves start locked if no shopsanity,
     #  maybe if shopsanity is on still make it so you need to unlock the item before buying upgrades to it
-    # TODO prevent entering slot name while already in game
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
         current_time = loop.time()
@@ -71,6 +69,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         set_blood_bar(ctx)
         update_koin_counter(ctx)
         update_tournament_victories_counter(ctx)
+        update_smoke_mission_counter(ctx)
         force_ui(ctx)
 
         update_message(ctx, dt)
@@ -85,6 +84,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         await check_completed_game(ctx)
         await sync_red_koins(ctx)
         await update_events_in_server(ctx)
+        await update_smoke_state_in_server(ctx)
         await update_exp_in_server(ctx)
         await set_exp_items(ctx)
 
@@ -99,6 +99,12 @@ def clear_events(ctx: MKSMContext):
         server_array = list(ctx.stored_data[ctx.event_array_key])
 
     ctx.game_interface.clear_event_log(bytes(server_array))
+
+    # Smoke's missions also depend on smoke flags and game events outside the event log;
+    # restore those together with it so the three always agree.
+    smoke_state = ctx.stored_data.get(ctx.smoke_state_key)
+    if smoke_state:
+        ctx.game_interface.set_smoke_state(smoke_state)
 
 
 def sync_foundry_door(ctx: MKSMContext) -> None:
@@ -160,6 +166,32 @@ async def update_events_in_server(ctx: MKSMContext) -> None:
                               {
                                   "operation": "replace",
                                   "value": filtered_array
+                              }
+                          ],
+                          }])
+
+
+async def update_smoke_state_in_server(ctx: MKSMContext) -> None:
+    """Autosaves Smoke's mission state (smoke flags, mission game events) next to the
+    event log; clear_events restores both together."""
+    if ctx.game_state != GameState.GAMEPLAY:
+        return
+
+    now = asyncio.get_running_loop().time()
+    if now - getattr(ctx, "last_smoke_state_poll", 0.0) < SMOKE_FLAGS_POLL_SECONDS:
+        return
+    ctx.last_smoke_state_poll = now
+
+    smoke_state = ctx.game_interface.get_smoke_state()
+    if smoke_state is None or smoke_state == ctx.stored_data.get(ctx.smoke_state_key):
+        return
+
+    await ctx.send_msgs([{"cmd": "Set",
+                          "key": ctx.smoke_state_key,
+                          "operations": [
+                              {
+                                  "operation": "replace",
+                                  "value": smoke_state
                               }
                           ],
                           }])
@@ -419,6 +451,14 @@ def update_tournament_victories_counter(ctx: MKSMContext):
     current = sum(item.item == ITEM_NAME_TO_ID["Tournament victory"] for item in ctx.items_received)
 
     ctx.game_interface.set_tournament_string(current)
+
+
+def update_smoke_mission_counter(ctx: MKSMContext):
+    smoke_locations = SMOKE_MISSIONS.keys()
+
+    current = sum(LOCATION_NAME_TO_ID[location] in ctx.checked_locations for location in smoke_locations)
+
+    ctx.game_interface.set_smoke_string(current)
 
 
 async def check_completed_game(ctx: MKSMContext):

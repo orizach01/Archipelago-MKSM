@@ -136,8 +136,12 @@ class MKSMContext(SuperContext):
         return self._seed_key("EXP_ITEMS_GIVEN")
 
     @property
+    def smoke_state_key(self):
+        return self._seed_key("SMOKE_STATE")
+
+    @property
     def seed_keys(self):
-        return self.event_array_key, self.current_exp_key, self.exp_items_given_key
+        return self.event_array_key, self.current_exp_key, self.exp_items_given_key, self.smoke_state_key
 
     def forget_seed_state(self) -> None:
         self.slot_data = None
