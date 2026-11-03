@@ -170,6 +170,23 @@ class MKSMContext(SuperContext):
         if password_requested and not self.password:
             await super().server_auth(password_requested)
         await self.get_username()
+        # The slot name prompt can wait as long as the player likes, so the main menu
+        # check in connect() may be stale by now. Check again before logging in; if the
+        # player has started playing, drop this connection and let _try_pending_connect
+        # reconnect (reusing the typed slot name) once the game is back at the main menu.
+        if not self.ready_to_connect():
+            logger.info("Not at the main menu any more - will log in once the game is back "
+                        "at the main menu.")
+            self.pending_server_address = self.server_address
+            # reset_server_state() clears auth on disconnect; get_username() checks
+            # username first, so keeping it there skips the prompt on the reconnect.
+            self.username = self.auth
+            self.disconnected_intentionally = True
+            # Not self.disconnect(): we are running inside the server task, and disconnect()
+            # waits for that task to finish.
+            if self.server and not self.server.socket.closed:
+                await self.server.socket.close()
+            return
         await self.send_connect()
 
     def on_package(self, cmd: str, args: dict) -> None:

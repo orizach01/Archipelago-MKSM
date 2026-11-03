@@ -7,6 +7,7 @@ from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OP
     ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, TOURNAMENT_VICTORY_AMOUNT, \
     MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES, PORTAL_MAP, PORTAL_TRIGGER_COUNT, WU_SHI_BRIDGE_CMD_COUNT, TRIGGER_TABLE, \
     TRIGGER_SIZE, TRIGGER_CMD_COUNT, TRIGGER_COND_COUNT, COOP_TRIGGERS, COOP_COND_COUNT, SINGLE_PLAYER_TRIGGER_PATCHES, \
+    SMOKE_MISSIONS, SMOKE_FLAGS_OFFSET, SMOKE_CHARACTER_STRIDE, SMOKE_CHARACTER_BLOCKS, \
     TWO_PLAYER_ONLY_TRIGGERS, TWO_PLAYER_ONLY_COND_COUNT
 
 from .pcsx2_interface.pine import Pine
@@ -466,6 +467,20 @@ class MKSMInterface(GameInterface):
         if self._read32(addr) != WU_SHI_BRIDGE_CMD_COUNT:
             return
         self._write32(addr, 0)
+
+    def get_completed_smoke_missions(self) -> set[int]:
+        """Mission indexes (0-4) whose "complete" bit is set in any character's smoke
+        block. Read-only: the game owns this state."""
+        save = self._read32(self.addresses.get("SAVE_OBJECT_POINTER"))
+        end = SMOKE_FLAGS_OFFSET + SMOKE_CHARACTER_BLOCKS * SMOKE_CHARACTER_STRIDE
+        if not 0x100000 <= save < 0x2000000 - end:
+            return set()  # no save object yet, or not a valid EE address
+
+        completed = set()
+        for block in range(SMOKE_CHARACTER_BLOCKS):
+            flags = self._read32(save + SMOKE_FLAGS_OFFSET + block * SMOKE_CHARACTER_STRIDE)
+            completed |= {n for n in range(len(SMOKE_MISSIONS)) if flags >> (2 * n) & 1}
+        return completed
 
     def _set_trigger_field(self, index: int, field: int, expected: int, value: int) -> None:
         # Same rule as the bridge gate: only overwrite the untouched original value.

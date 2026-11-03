@@ -170,7 +170,8 @@ ADDRESSES = {
             # the same source every entry above matches. Names are placeholders (area only).
             "GL: koin behind the cage": {0x005d82ad: [6]},  # unlockable 6, map 0x63 secret_koop_1
             "WSA: koin next to the boulders": {0x005d82ad: [7]},  # unlockable 11, map 0x67 secret_2play (istwoplayer)
-            "WSA: koin in the tree": {0x005d829e: [5, 6, 7], 0x005d829f: [0, 1, 2, 3, 4]},  # unlockable 18, map 0x6e secret_jump
+            "WSA: koin in the tree": {0x005d829e: [5, 6, 7], 0x005d829f: [0, 1, 2, 3, 4]},
+            # unlockable 18, map 0x6e secret_jump
             "WSA: koin after the bridge": {0x005d82ae: [0]},  # unlockable 17, map 0x6e secret_end (confirmed in game)
             "P: koin above the platform": {0x005d82ae: [1]},  # unlockable 19, map 0xc0 secret_ko_op
             "EM: koin from breaking the statue": {0x005d82ae: [2]},  # unlockable 27, map 0xc7 _d_stand
@@ -180,6 +181,9 @@ ADDRESSES = {
         "GAME_STATE": 0x5e1650,
         "EXP": 0xc2e224,
         "TOTAL_EVENTS": 0xc2def0,
+        # Pointer to the save/progress object. Smoke mission flags live inside it, see
+        # SMOKE_FLAGS_OFFSET.
+        "SAVE_OBJECT_POINTER": 0x4d8b80,
         "EVENT_LOG_ARRAY": 0xc2a070,
         "PAUSE_FLAG": 0x4c49e8,
 
@@ -646,6 +650,28 @@ DEFAULT_START_AREA = 0x60
 
 PORTAL_START_AREA = 0xc0
 
+# Smoke's missions (quest giver in map 0x92). Completion is detected two ways:
+#  1. the completion trigger in the event log, (map 0x92, trigger index)
+#  2. the "complete" bit the game's SmokeComplete(n) sets: 32-bit word at
+#     save object + SMOKE_FLAGS_OFFSET + (character - 1) * SMOKE_CHARACTER_STRIDE,
+#     bit 2n = mission n complete, bit 2n+1 = mission n accepted. One block per character;
+#     all blocks are read because which block is the current character's isn't mapped yet.
+# Location names are placeholders until the locations exist.
+# location name -> completion event, in mission order (position n = mission index n)
+SMOKE_MISSIONS = {
+    "Complete Smoke mission 1": _make_event(0x92, 0x04),
+    "Complete Smoke mission 2": _make_event(0x92, 0x0f),
+    "Complete Smoke mission 3": _make_event(0x92, 0x13),
+    "Complete Smoke mission 4": _make_event(0x92, 0x17),
+    "Complete Smoke mission 5": _make_event(0x92, 0x1a),
+}
+
+SMOKE_FLAGS_OFFSET = 0x4bec
+SMOKE_CHARACTER_STRIDE = 0x60
+SMOKE_CHARACTER_BLOCKS = 8
+# How often to read the smoke flags (seconds); each read is several emulator round-trips
+SMOKE_FLAGS_POLL_SECONDS = 2.0
+
 PORTAL_MAP = 0xc0
 # Number of triggers in the portal room's script; checked before touching its trigger table
 # so the gate never writes into another room's triggers.
@@ -666,11 +692,11 @@ TRIGGER_COND_COUNT = 0x60
 # The first condition decides which switch still works: switch 1 (event 28) everywhere,
 # except the portal platform (0xc0 trigger 0x49), which listens to switch 2 (event 29).
 COOP_TRIGGERS = {
-    0x64: (66, [0x16, 0x1c]),   # _d_2playdoor, _d_2pdoorr
-    0x68: (130, [0x35]),        # _d_2pswitch
-    0x8e: (102, [0x3a]),        # _d_2pdoor_o
+    0x64: (66, [0x16, 0x1c]),  # _d_2playdoor, _d_2pdoorr
+    0x68: (130, [0x35]),  # _d_2pswitch
+    0x8e: (102, [0x3a]),  # _d_2pdoor_o
     0xc0: (115, [0x49, 0x70]),  # _d_2p_compl (platforms), _d_exp_2psec (1000 exp)
-    0xc5: (39, [0x07]),         # _d_2playcomp
+    0xc5: (39, [0x07]),  # _d_2playcomp
 }
 COOP_COND_COUNT = 2
 
@@ -694,7 +720,7 @@ SINGLE_PLAYER_TRIGGER_PATCHES = {
     # leads into the co-op room (map 0x6e). Which of them was the actual blocker is not
     # known yet.
     0x68: (130, [
-        (0x75, TRIGGER_CMD_COUNT, 1, 0),   # _d_2p_nogo: blocks the exit for one player
+        (0x75, TRIGGER_CMD_COUNT, 1, 0),  # _d_2p_nogo: blocks the exit for one player
         (0x37, TRIGGER_COND_COUNT, 4, 0),  # _d_to111: exit to map 0x6e, needed all 4 chain pots
         (0x38, TRIGGER_COND_COUNT, 4, 0),  # _d_to01t: its X prompt, same 4 pots
     ]),

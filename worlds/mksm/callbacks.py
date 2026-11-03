@@ -15,7 +15,7 @@ from NetUtils import ClientStatus
 from .consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
     FOUNDRY_DOOR_OPEN_EVENT, TOURNAMENT_VICTORY_AMOUNT, \
     FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events, PORTAL_START_AREA, DEFAULT_START_AREA, \
-    MANA_UPGRADE_AMOUNT, HEALTH_UPGRADE_AMOUNT
+    MANA_UPGRADE_AMOUNT, HEALTH_UPGRADE_AMOUNT, SMOKE_MISSIONS, SMOKE_FLAGS_POLL_SECONDS
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 from .options import BossGoal
@@ -45,10 +45,7 @@ if TYPE_CHECKING:
 async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
-    # TODO open co op doors from start
     # TODO smoke missions
-    # TODO find reptile beaten flag and set it to 1 to get brutality red koin
-    # TODO add fast wushi start option
     # TODO option to have special moves start locked if no shopsanity,
     #  maybe if shopsanity is on still make it so you need to unlock the item before buying upgrades to it
     # TODO prevent entering slot name while already in game
@@ -82,6 +79,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         await check_move_upgrades(ctx)
         await check_red_koins(ctx)
         await check_events(ctx)
+        await check_smoke_missions(ctx)
         await check_finishing_moves(ctx)
         await check_final_boss(ctx)
         await check_completed_game(ctx)
@@ -347,6 +345,28 @@ async def check_events(ctx: MKSMContext) -> None:
 
     location_ids = {LOCATION_NAME_TO_ID[name] for name in checked_events}
     await ctx.check_locations(location_ids)
+
+
+async def check_smoke_missions(ctx: MKSMContext) -> None:
+    """Smoke mission completion, from the event log and (as a backup) the game's own
+    smoke flags. Only reads game memory."""
+    if not ctx.game_state == GameState.GAMEPLAY:
+        return
+
+    events = set(chunk_events(ctx.game_interface.get_event_block()))
+    done = {name for name, event in SMOKE_MISSIONS.items() if event in events}
+
+    now = asyncio.get_running_loop().time()
+    if now - getattr(ctx, "last_smoke_poll", 0.0) >= SMOKE_FLAGS_POLL_SECONDS:
+        ctx.last_smoke_poll = now
+        completed = ctx.game_interface.get_completed_smoke_missions()
+        done |= {name for n, name in enumerate(SMOKE_MISSIONS) if n in completed}
+
+    # Placeholder names are skipped until they exist as locations
+    location_ids = {LOCATION_NAME_TO_ID[name] for name in done if name in LOCATION_NAME_TO_ID}
+    location_ids -= ctx.checked_locations
+    if location_ids:
+        await ctx.check_locations(location_ids)
 
 
 def set_health_upgrades(ctx: MKSMContext) -> None:

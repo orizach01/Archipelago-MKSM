@@ -68,6 +68,11 @@ REGION_NAME_LOCATIONS = {
         "LF: koin from breaking the fast statues": 28,
         "LF: koin in coop 1": 108,
         "LF: koin in coop 2": 109,
+        "Complete Smoke mission 1": 300,
+        "Complete Smoke mission 2": 301,
+        "Complete Smoke mission 3": 302,
+        "Complete Smoke mission 4": 303,
+        "Complete Smoke mission 5": 304,
     },
     "Forest - Bridges": {
         "LF: koin from shooting at dragon koin": 29,
@@ -229,7 +234,6 @@ FINISHING_MOVES_LOCATIONS: dict[int, dict[str, int]] = {
         "Perform Head Decaptation (Fatality)": 539,
         "Perform Nut Buster (Fatality)": 541,
     },
-
 }
 
 LOCATION_NAME_TO_ID = {loc: loc_id for k, v in REGION_NAME_LOCATIONS.items() for loc, loc_id in v.items()}

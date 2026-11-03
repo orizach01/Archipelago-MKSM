@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from BaseClasses import CollectionRule
 from rule_builder.options import OptionFilter
-from rule_builder.rules import Has, Rule
+from rule_builder.rules import Has, Rule, CanReachRegion, CanReachLocation
 from .consts import TOURNAMENT_VICTORY_AMOUNT
 from .locations import FINISHING_MOVES_LOCATIONS
 from .options import BossGoal, Shopsanity, RandomizeTournamentVictories, PortalStart
@@ -56,6 +56,7 @@ def set_all_rules(world: MKSMWorld) -> None:
     set_completion_condition(world)
     set_purchase_rules(world)
     set_finishing_moves_rules(world)
+    set_smoke_mission_rules(world)
 
 
 PURCHASE_REGIONS = ("Monastery", "Forest", "Tombs", "Netherrealm", "Wasteland 1")
@@ -238,6 +239,18 @@ def set_finishing_moves_rules(world: MKSMWorld) -> None:
             world.set_rule(loc, MULTALITY)
         elif "Brutality" in loc_name:
             world.set_rule(loc, BRUTALITY)
+
+
+def set_smoke_mission_rules(world: MKSMWorld):
+    world.set_rule(world.get_location("Complete Smoke mission 1"), CanReachRegion("Tombs"))
+    world.set_rule(world.get_location("Complete Smoke mission 2"),
+                   CanReachLocation("Complete Smoke mission 1") & CanReachRegion("Wu-Shi") & FIST_OF_RUIN)
+    world.set_rule(world.get_location("Complete Smoke mission 3"),
+                   CanReachLocation("Complete Smoke mission 2") & CanReachRegion("Tombs"))
+    world.set_rule(world.get_location("Complete Smoke mission 4"),
+                   CanReachLocation("Complete Smoke mission 3") & CanReachRegion("Monastery"))
+    world.set_rule(world.get_location("Complete Smoke mission 5"),
+                   CanReachLocation("Complete Smoke mission 4"))
 
 
 def set_completion_condition(world: MKSMWorld) -> None:
