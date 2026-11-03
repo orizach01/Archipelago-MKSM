@@ -123,18 +123,25 @@ class Pine:
         request = Pine._create_request(Pine.IPCCommand.READ64, address, 9)
         return Pine.from_bytes(self._send_request(request)[-8:])
 
+    _READ_BY_SIZE = {8: IPCCommand.READ64, 4: IPCCommand.READ32, 2: IPCCommand.READ16, 1: IPCCommand.READ8}
+    _WRITE_BY_SIZE = {8: IPCCommand.WRITE64, 4: IPCCommand.WRITE32, 2: IPCCommand.WRITE16, 1: IPCCommand.WRITE8}
+
+    @staticmethod
+    def _pieces(length: int) -> list[tuple[int, int]]:
+        """Splits a span into (offset, size) pieces of 8, then 4, 2 and 1 bytes."""
+        pieces = []
+        offset = 0
+        while offset < length:
+            left = length - offset
+            size = 8 if left >= 8 else 4 if left >= 4 else 2 if left >= 2 else 1
+            pieces.append((offset, size))
+            offset += size
+        return pieces
+
     def read_bytes(self, address: int, length: int) -> bytes:
-        data = b''
-        while len(data) < length:
-            if length - len(data) >= 8:
-                data += self._send_request(Pine._create_request(Pine.IPCCommand.READ64, address + len(data), 9))[-8:]
-            elif length - len(data) >= 4:
-                data += self._send_request(Pine._create_request(Pine.IPCCommand.READ32, address + len(data), 9))[-4:]
-            elif length - len(data) >= 2:
-                data += self._send_request(Pine._create_request(Pine.IPCCommand.READ16, address + len(data), 9))[-2:]
-            elif length - len(data) >= 1:
-                data += self._send_request(Pine._create_request(Pine.IPCCommand.READ8, address + len(data), 9))[-1:]
-        return data
+        commands = [(Pine.to_bytes(Pine._READ_BY_SIZE[size], 1) + Pine.to_bytes(address + offset, 4), size)
+                    for offset, size in Pine._pieces(length)]
+        return self._send_batch(commands)
 
     def write_int8(self, address: int, value: int) -> None:
         request = Pine._create_request(Pine.IPCCommand.WRITE8, address, 9 + Pine.DataSize.INT8)
@@ -162,28 +169,40 @@ class Pine:
         self._send_request(request)
 
     def write_bytes(self, address: int, data: bytes) -> None:
-        bytes_written = 0
-        while bytes_written < len(data):
-            if len(data) - bytes_written >= 8:
-                request = self._create_request(Pine.IPCCommand.WRITE64, address + bytes_written, 9 + Pine.DataSize.INT64)
-                request += data[bytes_written:bytes_written + 8]
-                self._send_request(request)
-                bytes_written += 8
-            elif len(data) - bytes_written >= 4:
-                request = self._create_request(Pine.IPCCommand.WRITE32, address + bytes_written, 9 + Pine.DataSize.INT32)
-                request += data[bytes_written:bytes_written + 4]
-                self._send_request(request)
-                bytes_written += 4
-            elif len(data) - bytes_written >= 2:
-                request = self._create_request(Pine.IPCCommand.WRITE16, address + bytes_written, 9 + Pine.DataSize.INT16)
-                request += data[bytes_written:bytes_written + 2]
-                self._send_request(request)
-                bytes_written += 2
-            elif len(data) - bytes_written >= 1:
-                request = self._create_request(Pine.IPCCommand.WRITE8, address + bytes_written, 9 + Pine.DataSize.INT8)
-                request += data[bytes_written:bytes_written + 1]
-                self._send_request(request)
-                bytes_written += 1
+        commands = [(Pine.to_bytes(Pine._WRITE_BY_SIZE[size], 1) + Pine.to_bytes(address + offset, 4)
+                     + bytes(data[offset:offset + size]), 0)
+                    for offset, size in Pine._pieces(len(data))]
+        self._send_batch(commands)
+
+    def _send_batch(self, commands: list[tuple[bytes, int]]) -> bytes:
+        """Sends many commands as few messages as possible: PINE runs every command in a
+        message and replies once, with all the read data concatenated in command order.
+        `commands` holds (encoded command, bytes it returns). Each message stays under
+        PCSX2's request, reply and command-count limits. Returns all read data joined."""
+        out = []
+        start = 0
+        while start < len(commands):
+            end = start
+            request_size = 4
+            reply_size = 5
+            while end < len(commands) and end - start < Pine.MAX_BATCH_REPLY_COUNT:
+                command, returns = commands[end]
+                if (request_size + len(command) > Pine.MAX_IPC_SIZE
+                        or reply_size + returns > Pine.MAX_IPC_RETURN_SIZE):
+                    break
+                request_size += len(command)
+                reply_size += returns
+                end += 1
+
+            request = Pine.to_bytes(request_size, 4) + b"".join(command for command, _ in commands[start:end])
+            reply = self._send_request(request)
+            if len(reply) != reply_size:
+                # _send_request read exactly the length PCSX2 announced, so the socket is
+                # still in step; the reply just doesn't match what we asked for
+                raise ConnectionError(f"Unexpected batch reply size from PCSX2 ({len(reply)}, expected {reply_size}).")
+            out.append(reply[5:])
+            start = end
+        return b"".join(out)
 
     def get_game_id(self) -> str:
         request = Pine.to_bytes(5, 4) + Pine.to_bytes(Pine.IPCCommand.ID, 1)

@@ -1,3 +1,4 @@
+import struct
 from dataclasses import dataclass
 from enum import Enum
 
@@ -768,3 +769,26 @@ MAX_MANA_UPGRADE_VALUES = {
 }
 
 MANA_UPGRADE_AMOUNT = max(MAX_MANA_UPGRADE_VALUES.keys())
+
+# Mana regen (function at 0x169740): after spending, mana waits 120 updates, then gains a
+# fixed amount per update until it reaches the max. The amount is 1.0 in most game modes
+# and 0.05 in mode 2 (which mode the story game uses isn't confirmed, so both are scaled).
+# Scaling both by max / 100 keeps a full refill taking about the same time at every
+# upgrade level.
+MANA_REGEN_INST = 0x1697b0  # lui at,0x3f80: upper half of the 1.0 rate
+MANA_REGEN_MODE2_INSTS = (0x1697a0, 0x1697a4)  # lui at,0x3d4c / ori at,at,0xcccd: 0.05
+
+
+def _float_bits(value: float) -> int:
+    return struct.unpack("<I", struct.pack("<f", value))[0]
+
+
+def _mana_regen_insts(max_upper: int) -> tuple[int, int, int]:
+    """The three regen instructions for a max mana given as the upper half of a float."""
+    scale = struct.unpack("<f", struct.pack("<I", max_upper << 16))[0] / 100.0
+    rate = (_float_bits(1.0 * scale) + 0x8000) >> 16  # only the upper half is loaded: round
+    mode2 = _float_bits(0.05 * scale)
+    return 0x3c010000 | rate, 0x3c010000 | (mode2 >> 16), 0x34210000 | (mode2 & 0xffff)
+
+
+MANA_REGEN_UPGRADE_INSTS = {level: _mana_regen_insts(upper) for level, upper in MAX_MANA_UPGRADE_VALUES.items()}

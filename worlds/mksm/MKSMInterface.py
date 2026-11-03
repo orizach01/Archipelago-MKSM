@@ -5,7 +5,8 @@ from typing import Optional, Dict
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
     NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII, \
     ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, SAVE_MARKER_SIZE, TOURNAMENT_VICTORY_AMOUNT, \
-    MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES, PORTAL_MAP, PORTAL_TRIGGER_COUNT, WU_SHI_BRIDGE_CMD_COUNT, \
+    MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES, MANA_REGEN_INST, MANA_REGEN_MODE2_INSTS, \
+    MANA_REGEN_UPGRADE_INSTS, PORTAL_MAP, PORTAL_TRIGGER_COUNT, WU_SHI_BRIDGE_CMD_COUNT, \
     TRIGGER_TABLE, \
     TRIGGER_SIZE, TRIGGER_CMD_COUNT, TRIGGER_COND_COUNT, COOP_TRIGGERS, COOP_COND_COUNT, SINGLE_PLAYER_TRIGGER_PATCHES, \
     SMOKE_MISSIONS, SMOKE_FLAGS_OFFSET, SMOKE_CHARACTER_STRIDE, SMOKE_CHARACTER_BLOCKS, \
@@ -605,3 +606,9 @@ class MKSMInterface(GameInterface):
             # Game code, see force_ui: only write when the value changes
             if self._read16(addr) != MAX_MANA_UPGRADE_VALUES[level]:
                 self._write16(addr, MAX_MANA_UPGRADE_VALUES[level])
+
+        # Regen scaled to the new max, so a full refill takes about as long as before
+        regen_addrs = (MANA_REGEN_INST, *MANA_REGEN_MODE2_INSTS)
+        for addr, inst in zip(regen_addrs, MANA_REGEN_UPGRADE_INSTS[level]):
+            if self._read32(addr) != inst:
+                self._write32(addr, inst)
