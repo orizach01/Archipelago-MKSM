@@ -146,24 +146,35 @@ class MKSMInterface(GameInterface):
 
         return first, second
 
-    def clear_uncollected_red_koins(self, checked_names: set[str]) -> None:
-        """Zero out every red koin's bits in game memory except for the ones in
-        `checked_names`."""
+    def sync_red_koin_bits(self, checked_names: set[str], clear_unchecked: bool = True) -> None:
+        """Make every red koin's bits match the server: set for the ones in
+        `checked_names` (so koins checked from outside the game, e.g. /send_location,
+        don't spawn), cleared for the rest unless `clear_unchecked` is False."""
         koin_addrs = self.addresses.get("RED_KOINS", {})
         if not koin_addrs:
             return
 
         all_addrs = {addr for bits in koin_addrs.values() for addr in bits}
         start, end = min(all_addrs), max(all_addrs)
-        block = bytearray(self._read_bytes(start, end - start + 1))
+        original = bytes(self._read_bytes(start, end - start + 1))
+        block = bytearray(original)
 
+        # Each bit is one unlockable (concept art, arena art, ...), and three concept art
+        # pieces are given by two koins each. A koin keeps spawning while any of its bits
+        # is clear, so a shared bit must be set if either koin is checked: clear first,
+        # then set. No koin's bits are all covered by other koins, so this can't make an
+        # unchecked koin look collected.
+        for location_name, addr_bits in koin_addrs.items():
+            if clear_unchecked and location_name not in checked_names:
+                for addr, bits in addr_bits.items():
+                    block[addr - start] &= ~self._mask(bits) & 0xFF
         for location_name, addr_bits in koin_addrs.items():
             if location_name in checked_names:
-                continue  # AP already has this checked; leave its bits alone
-            for addr, bits in addr_bits.items():
-                block[addr - start] &= ~self._mask(bits) & 0xFF
+                for addr, bits in addr_bits.items():
+                    block[addr - start] |= self._mask(bits)
 
-        self._write_bytes(start, bytes(block))
+        if block != original:
+            self._write_bytes(start, bytes(block))
 
     def get_game_state(self) -> GameState:
         state_addr = self.addresses.get("GAME_STATE")

@@ -92,7 +92,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         await check_finishing_moves(ctx)
         await check_final_boss(ctx)
         await check_completed_game(ctx)
-        await sync_red_koins(ctx)
+        sync_red_koins(ctx)
         await update_events_in_server(ctx)
         await update_smoke_state_in_server(ctx)
         # set_exp_items first, so exp it adds is pushed this tick - if the next tick is
@@ -274,13 +274,20 @@ def read_game_state(ctx) -> None:
         ctx.game_interface.forget_event_log_state()
 
 
-async def sync_red_koins(ctx: MKSMContext) -> None:
-    """clears every red koin's bits in game memory except for the
-    locations the AP server already considers checked."""
-    if ctx.game_state != GameState.GAMEPLAY:
-        koin_names = ctx.game_interface.addresses.get("RED_KOINS", {}).keys()
-        checked_names = {name for name in koin_names if LOCATION_NAME_TO_ID[name] in ctx.checked_locations}
-        ctx.game_interface.clear_uncollected_red_koins(checked_names)
+def sync_red_koins(ctx: MKSMContext) -> None:
+    """Makes the game's red koin bits match what the AP server has checked, so koins
+    checked from outside the game (/send_location, !collect) stop spawning. The game only
+    looks at the bits when a room spawns its koins, so one already in the current room
+    stays until the room is entered again.
+
+    During gameplay this only sets bits: clearing there could wipe a koin the player just
+    picked up before the server has confirmed it. Room transitions stay in gameplay, so
+    without the set-only pass a koin checked from outside would keep spawning until the
+    next save load."""
+    koin_names = ctx.game_interface.addresses.get("RED_KOINS", {}).keys()
+    checked_names = {name for name in koin_names if LOCATION_NAME_TO_ID[name] in ctx.checked_locations}
+    ctx.game_interface.sync_red_koin_bits(checked_names,
+                                          clear_unchecked=ctx.game_state != GameState.GAMEPLAY)
 
 
 async def check_red_koins(ctx: MKSMContext) -> None:

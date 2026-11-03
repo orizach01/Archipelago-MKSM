@@ -56,6 +56,17 @@ PROJECTILE_MOVE = (_move_unlock("Square special upgrade", [Character.option_liu_
 # Same, but Scorpion and Sub-Zero always pass too
 MOON_RULE = (_move_unlock("Square special upgrade", [Character.option_liu_kang])
              & _move_unlock("Circle special upgrade", [Character.option_kung_lao]))
+# Every character's projectile, VS characters included (Baraka's Blade Spark and Johnny Cage's
+# Shadow Bolt are Square, Kitana's Fan Throw is Circle, Reptile has Acid Spit on Square and
+# Force Ball on Circle). Used where the VS characters' shooting koin events don't skip the need.
+ANY_PROJECTILE_MOVE = (
+        _move_unlock("Square special upgrade", [Character.option_liu_kang, Character.option_sub_zero,
+                                                Character.option_baraka, Character.option_johnny_cage])
+        & _move_unlock("Circle special upgrade", [Character.option_kung_lao, Character.option_scorpion,
+                                                  Character.option_kitana])
+        & (_move_unlock("Square special upgrade", [Character.option_reptile])
+           | _move_unlock("Circle special upgrade", [Character.option_reptile]))
+)
 
 KITANA = Has("Kitana defeated item")
 REPTILE = Has("Reptile defeated item")
@@ -170,7 +181,7 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     )
     world.set_rule(world.get_location("ST: koin above Baraka's entrance"), WALL_RUN & DOUBLE_JUMP)
     world.set_rule(world.get_location("ST: koin from the broken statue"), FIST_OF_RUIN)
-    world.set_rule(world.get_location("ST: koin above the broken statue"), FIST_OF_RUIN & (DOUBLE_JUMP | LONG_JUMP))
+    world.set_rule(world.get_location("ST: koin above the broken statue"), FIST_OF_RUIN)
     world.set_rule(world.get_location("ST: koin from a high button in the rolling spikes room"), DOUBLE_JUMP)
     world.set_rule(world.get_location("ST: koin above the ceiling in the room with the hooks"), DOUBLE_JUMP)
     world.set_rule(world.get_location("ST: koin from launching a tarkata on the flying bird"), LAUNCHING_THROW)
@@ -252,7 +263,8 @@ def connect_regions(world: MKSMWorld) -> None:
     wasteland_2.connect(dead_pool)
 
     portal_1.connect(tombs, rule=WALL_CLIMB)
-    tombs.connect(tombs_baraka, rule=FIST_OF_RUIN)
+    tombs.connect(tombs_baraka, rule=FIST_OF_RUIN & ANY_PROJECTILE_MOVE)
+    tombs_baraka.connect(wu_shi)
 
     portal_1.connect(monastery, rule=DOUBLE_JUMP | LONG_JUMP)
     monastery.connect(monastery_kitana)

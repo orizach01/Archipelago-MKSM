@@ -399,9 +399,6 @@ GOROS_LAIR_SKIP_EVENTS = [
     *_make_event(0x65, 0x4b),
     *_make_event(0x65, 0x2a),
     *_make_event(0x65, 0x2f),
-
-    *_make_event(0x64, 0x16),
-    *_make_event(0x64, 0x1c),
 ]
 
 WU_SHI_SKIP_EVENTS = [
