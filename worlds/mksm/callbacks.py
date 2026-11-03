@@ -95,8 +95,10 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         await sync_red_koins(ctx)
         await update_events_in_server(ctx)
         await update_smoke_state_in_server(ctx)
-        await update_exp_in_server(ctx)
+        # set_exp_items first, so exp it adds is pushed this tick - if the next tick is
+        # outside gameplay, clear_exp would otherwise restore the older server value
         await set_exp_items(ctx)
+        await update_exp_in_server(ctx)
 
 
 def clear_events(ctx: MKSMContext):
@@ -236,6 +238,9 @@ async def update_exp_in_server(ctx: MKSMContext) -> None:
 
     current_exp = ctx.game_interface.get_current_exp()
     server_exp = ctx.stored_data.get(ctx.current_exp_key) or 0
+
+    if current_exp == server_exp:
+        return
 
     if current_exp == 0 and server_exp > 0:
         # spending exp on upgrades legitimately lowers it, so a drop alone isn't suspicious -
@@ -495,6 +500,9 @@ def update_smoke_mission_counter(ctx: MKSMContext):
 
 
 async def check_completed_game(ctx: MKSMContext):
+    if ctx.finished_game:
+        return
+
     total = ctx.slot_data["red_koin_amount"]
     needed = int(total * ctx.slot_data["red_koin_need_percent"] / 100)
     current = sum(item.item == ITEM_NAME_TO_ID["Red Koin"] for item in ctx.items_received)
@@ -526,8 +534,12 @@ async def check_death(ctx: MKSMContext) -> None:
         return
 
     is_dead = ctx.game_interface.is_dead()
-    if is_dead and not ctx.was_dead and "DeathLink" in ctx.tags:
-        await ctx.send_death("")
+    if is_dead and not ctx.was_dead:
+        if ctx.received_death:
+            # this death came from DeathLink; sending it back would bounce it forever
+            ctx.received_death = False
+        elif "DeathLink" in ctx.tags:
+            await ctx.send_death("")
     ctx.was_dead = is_dead
 
 

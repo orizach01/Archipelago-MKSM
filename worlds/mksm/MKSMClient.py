@@ -85,6 +85,7 @@ class MKSMContext(SuperContext):
     exp_items_given: int = 0
     pending_server_address: str | None
     was_dead: bool
+    received_death: bool
     message_queue: deque
     message_timer: float | None
     current_message: str | None
@@ -105,6 +106,7 @@ class MKSMContext(SuperContext):
         self.slot_data = None
         self.pending_server_address = None
         self.was_dead = False
+        self.received_death = False
         self.message_queue = deque(maxlen=MAX_QUEUED_MESSAGES)
         self.message_timer = None  # None means no message is currently being displayed
         self.current_message = None
@@ -156,6 +158,7 @@ class MKSMContext(SuperContext):
         self.health_upgrades = 0
         self.set_upgrades_in_pause = False
         self.was_dead = False
+        self.received_death = False
         for key in self.seed_keys:
             self.stored_data.pop(key, None)
             self.stored_data_notification_keys.discard(key)
@@ -213,6 +216,11 @@ class MKSMContext(SuperContext):
 
     def on_deathlink(self, data: typing.Dict[str, typing.Any]) -> None:
         super().on_deathlink(data)
+        # Only kill during gameplay: elsewhere the health write can land at the main menu
+        # or mid-load, and a dead PCSX2 socket would raise inside the server handler.
+        if not self.is_connected_to_game or self.game_state != GameState.GAMEPLAY:
+            return
+        self.received_death = True
         self.game_interface.kill_player()
 
     def on_print_json(self, args: dict):
