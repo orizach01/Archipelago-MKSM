@@ -7,7 +7,7 @@ from rule_builder.options import OptionFilter
 from rule_builder.rules import Has, Rule, CanReachRegion, CanReachLocation
 from .consts import TOURNAMENT_VICTORY_AMOUNT
 from .locations import FINISHING_MOVES_LOCATIONS
-from .options import BossGoal, Shopsanity, RandomizeTournamentVictories, PortalStart
+from .options import BossGoal, Shopsanity, RandomizeTournamentVictories, PortalStart, LockSpecialMoves
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -22,11 +22,22 @@ FIST_OF_RUIN: Rule = Has("Fist of Ruin")
 FATALITY: Rule = Has("Blood bar", count=1)
 MULTALITY: Rule = Has("Blood bar", count=2)
 BRUTALITY: Rule = Has("Blood bar", count=3)
-LAUNCHING_THROW = Has("R2 special upgrade",
-                      count=2,
-                      options=[OptionFilter(Shopsanity, True)],
-                      filtered_resolution=True,
-                      )
+# Needs R2 upgraded twice. With lock_special_moves the first R2 item only unlocks the move;
+# with shopsanity off the upgrades are bought in the shop, so only the unlock is an item.
+LAUNCHING_THROW = (Has("R2 special upgrade",
+                       count=2,
+                       options=[OptionFilter(Shopsanity, True), OptionFilter(LockSpecialMoves, False)],
+                       filtered_resolution=True,
+                       )
+                   & Has("R2 special upgrade",
+                         count=3,
+                         options=[OptionFilter(Shopsanity, True), OptionFilter(LockSpecialMoves, True)],
+                         filtered_resolution=True,
+                         )
+                   & Has("R2 special upgrade",
+                         options=[OptionFilter(Shopsanity, False), OptionFilter(LockSpecialMoves, True)],
+                         filtered_resolution=True,
+                         ))
 KITANA = Has("Kitana defeated item")
 REPTILE = Has("Reptile defeated item")
 BARAKA = Has("Baraka defeated item")
@@ -242,6 +253,9 @@ def set_finishing_moves_rules(world: MKSMWorld) -> None:
 
 
 def set_smoke_mission_rules(world: MKSMWorld):
+    if not world.options.smoke_missions:
+        return
+
     world.set_rule(world.get_location("Complete Smoke mission 1"), CanReachRegion("Tombs"))
     world.set_rule(world.get_location("Complete Smoke mission 2"),
                    CanReachLocation("Complete Smoke mission 1") & CanReachRegion("Wu-Shi") & FIST_OF_RUIN)

@@ -104,6 +104,8 @@ class MKSMWorld(World):
             "skip_tutorial": bool(self.options.skip_tutorial.value),
             "randomize_tournament_victories": bool(self.options.randomize_tournament_victories.value),
             "mana_upgrades": bool(self.options.mana_upgrades.value),
+            "lock_special_moves": bool(self.options.lock_special_moves.value),
+            "smoke_missions": bool(self.options.smoke_missions.value),
             "options": self.options.as_dict("character",
                                             "red_koin_need_percent",
                                             "boss_goal",
@@ -113,6 +115,8 @@ class MKSMWorld(World):
                                             "skip_tutorial",
                                             "randomize_tournament_victories",
                                             "mana_upgrades",
+                                            "lock_special_moves",
+                                            "smoke_missions",
                                             )
         }
 

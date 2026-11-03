@@ -282,12 +282,12 @@ class MKSMInterface(GameInterface):
                                         combo=sum(combos)), combos
 
     def set_move_upgrades(self, square: int, triangle: int, circle: int, r2: int):
-        # adding 1 because the game has the first upgrade already unlocked.
-        # setting upgrades to 0 prevents buying future upgrades.
-        self._write8(self.addresses.get("SQUARE_UPGRADE"), square + 1)
-        self._write8(self.addresses.get("TRIANGLE_UPGRADE"), triangle + 1)
-        self._write8(self.addresses.get("CIRCLE_UPGRADE"), circle + 1)
-        self._write8(self.addresses.get("R2_UPGRADE"), r2 + 1)
+        # the game's level: 0 = move locked (and its upgrades can't be bought),
+        # 1 = base move, every level above that is one upgrade tier.
+        self._write8(self.addresses.get("SQUARE_UPGRADE"), square)
+        self._write8(self.addresses.get("TRIANGLE_UPGRADE"), triangle)
+        self._write8(self.addresses.get("CIRCLE_UPGRADE"), circle)
+        self._write8(self.addresses.get("R2_UPGRADE"), r2)
 
     def set_combos(self, combo_1: bool, combo_2: bool, combo_3: bool, combo_4: bool, combo_5: bool):
         self._write8(self.addresses.get("COMBO_1"), int(combo_1))

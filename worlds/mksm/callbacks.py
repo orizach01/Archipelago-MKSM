@@ -18,7 +18,10 @@ from .consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, ANI
     MANA_UPGRADE_AMOUNT, HEALTH_UPGRADE_AMOUNT, SMOKE_MISSIONS, SMOKE_FLAGS_POLL_SECONDS, SAVE_MARKER_MAGIC
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
-from .options import BossGoal
+from .options import BossGoal, Character
+
+VS_CHARACTERS = (Character.option_baraka, Character.option_kitana,
+                 Character.option_reptile, Character.option_johnny_cage)
 
 FINAL_BOSS_LOCATION = "F: Shao Kahn defeated"
 
@@ -324,11 +327,23 @@ _UPGRADE_TIERS = {"square": ("Square", 5), "triangle": ("Triangle", 5),
                   "circle": ("Circle", 6), "r2": ("R2", 6)}
 
 
+def _received_upgrade_items(ctx: MKSMContext, label: str) -> int:
+    return sum(item.item == ITEM_NAME_TO_ID[f"{label} special upgrade"] for item in ctx.items_received)
+
+
+def _move_starts_locked(ctx: MKSMContext, key: str) -> bool:
+    if not ctx.slot_data["lock_special_moves"]:
+        return False
+    # VS characters have no items for these moves (items.py), so they stay usable
+    return key == "r2" or ctx.slot_data["character"] not in VS_CHARACTERS
+
+
 def _upgrades_from_checked(ctx: MKSMContext):
     """What the pause menu should show: what the server says you have purchased."""
+    # +1: the base move is always shown as owned here, otherwise the shop won't sell its upgrades
     counts = {
         key: sum(LOCATION_NAME_TO_ID[f"Purchase upgrade - {label} {i}"] in ctx.checked_locations
-                 for i in range(2, stop))
+                 for i in range(2, stop)) + 1
         for key, (label, stop) in _UPGRADE_TIERS.items()
     }
     combos = [LOCATION_NAME_TO_ID[f"Purchase combo {i}"] in ctx.checked_locations for i in range(1, 6)]
@@ -336,12 +351,16 @@ def _upgrades_from_checked(ctx: MKSMContext):
 
 
 def _upgrades_from_received(ctx: MKSMContext):
-    """Your actual loadout during gameplay: what the server has granted you."""
-    counts = {
-        key: min(sum(item.item == ITEM_NAME_TO_ID[f"{label} special upgrade"]
-                     for item in ctx.items_received), 5)
-        for key, (label, _) in _UPGRADE_TIERS.items()
-    }
+    """Your actual loadout during gameplay: what the server has granted you.
+    With lock_special_moves each move's upgrade item is progressive: 0 copies = move
+    locked, 1 = base move, every further copy = one upgrade tier. Without it the base
+    move is always there and every copy is an upgrade tier."""
+    counts = {}
+    for key, (label, _) in _UPGRADE_TIERS.items():
+        level = _received_upgrade_items(ctx, label)
+        if not _move_starts_locked(ctx, key):
+            level += 1
+        counts[key] = min(level, 6)
     combos = [any(item.item == ITEM_NAME_TO_ID[f"Combo {i}"] for item in ctx.items_received)
               for i in range(1, 6)]
     return counts, combos
@@ -378,6 +397,30 @@ def set_move_upgrades(ctx: MKSMContext) -> None:
         else:
             _write_upgrades(ctx, *_upgrades_from_received(ctx))
             ctx.set_upgrades_in_pause = False
+    elif ctx.slot_data["lock_special_moves"]:
+        lock_special_moves_vanilla_shop(ctx)
+
+
+def lock_special_moves_vanilla_shop(ctx: MKSMContext) -> None:
+    """Shopsanity off: the game's shop owns the upgrade levels, so only lock a move until
+    its unlock item arrives, then raise it to the base level once so the shop can sell
+    its upgrades. Levels the player bought are never touched."""
+    if ctx.game_state != GameState.GAMEPLAY:
+        return  # a half-loaded level could read as 0 and get raised over the real one
+
+    current, _ = ctx.game_interface.get_upgrade_amounts()
+    levels = {}
+    for key, (label, _) in _UPGRADE_TIERS.items():
+        level = getattr(current, key)
+        if _move_starts_locked(ctx, key):
+            if _received_upgrade_items(ctx, label) == 0:
+                level = 0
+            elif level == 0:
+                level = 1
+        levels[key] = level
+
+    if any(levels[key] != getattr(current, key) for key in levels):
+        ctx.game_interface.set_move_upgrades(**levels)
 
 
 def set_abilities(ctx: MKSMContext) -> None:
@@ -420,7 +463,7 @@ async def check_events(ctx: MKSMContext) -> None:
 async def check_smoke_missions(ctx: MKSMContext) -> None:
     """Smoke mission completion, from the event log and (as a backup) the game's own
     smoke flags. Only reads game memory."""
-    if not ctx.game_state == GameState.GAMEPLAY:
+    if not ctx.slot_data["smoke_missions"] or ctx.game_state != GameState.GAMEPLAY:
         return
 
     events = set(chunk_events(ctx.game_interface.get_event_block()))
@@ -492,6 +535,9 @@ def update_tournament_victories_counter(ctx: MKSMContext):
 
 
 def update_smoke_mission_counter(ctx: MKSMContext):
+    if not ctx.slot_data["smoke_missions"]:
+        return  # no smoke checks to count, leave the game's own counter alone
+
     smoke_locations = SMOKE_MISSIONS.keys()
 
     current = sum(LOCATION_NAME_TO_ID[location] in ctx.checked_locations for location in smoke_locations)

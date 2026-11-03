@@ -97,6 +97,23 @@ class Shopsanity(DefaultOnToggle):
     display_name = "Shopsanity"
 
 
+class SmokeMissions(DefaultOnToggle):
+    """
+    If on, adds checks for completing each of Smoke's 5 missions.
+    """
+    display_name = "Smoke Missions"
+
+
+class LockSpecialMoves(DefaultOnToggle):
+    """
+    If on, special moves start locked and one extra special upgrade item per move is shuffled in the item pool.
+    The first special upgrade item you get for a move unlocks it, each further one upgrades it.
+    With shopsanity off, the first item unlocks the move and its upgrades can then be bought in the shop like normal.
+    VS mode characters only have R2 locked.
+    """
+    display_name = "Lock Special Moves"
+
+
 class SkipTutorial(Toggle):
     """
     Turn this option on to skip the turotials in Goro's Lair.
@@ -141,6 +158,8 @@ class MKSMOptions(PerGameCommonOptions):
     boss_goal: BossGoal
     fatalitysanity: Fatalitysanity
     shopsanity: Shopsanity
+    smoke_missions: SmokeMissions
+    lock_special_moves: LockSpecialMoves
     portal_start: PortalStart
     skip_tutorial: SkipTutorial
     randomize_tournament_victories: RandomizeTournamentVictories
@@ -161,8 +180,10 @@ OPTION_GROUPS = [
     OptionGroup("Extra Locations", [
         Shopsanity,
         Fatalitysanity,
+        SmokeMissions,
     ]),
     OptionGroup("Extra Items", [
-        ManaUpgrades
+        ManaUpgrades,
+        LockSpecialMoves,
     ]),
 ]

@@ -87,14 +87,22 @@ def create_all_items(world: MKSMWorld) -> None:
         world.create_item("Double Jump"),
     ]
 
+    # with lock_special_moves, one more copy per move: the first copy unlocks the move itself
+    unlock = 1 if world.options.lock_special_moves else 0
+
     if world.options.shopsanity:
         if not character.is_vs():
             itempool += [world.create_item(f"Combo {i + 1}") for i in range(amounts.combo)]
-            itempool += [world.create_item("Square special upgrade") for _ in range(amounts.square)]
-            itempool += [world.create_item("Triangle special upgrade") for _ in range(amounts.triangle)]
-            itempool += [world.create_item("Circle special upgrade") for _ in range(amounts.circle)]
+            itempool += [world.create_item("Square special upgrade") for _ in range(amounts.square + unlock)]
+            itempool += [world.create_item("Triangle special upgrade") for _ in range(amounts.triangle + unlock)]
+            itempool += [world.create_item("Circle special upgrade") for _ in range(amounts.circle + unlock)]
 
-        itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2)]
+        itempool += [world.create_item("R2 special upgrade") for _ in range(amounts.r2 + unlock)]
+    elif unlock:
+        # upgrades are bought in the shop like vanilla, only the unlocks are items
+        if not character.is_vs():
+            itempool += [world.create_item(f"{move} special upgrade") for move in ("Square", "Triangle", "Circle")]
+        itempool.append(world.create_item("R2 special upgrade"))
 
     itempool += [world.create_item("Health upgrade") for _ in range(HEALTH_UPGRADE_AMOUNT)]
 

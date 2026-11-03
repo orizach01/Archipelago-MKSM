@@ -68,11 +68,6 @@ REGION_NAME_LOCATIONS = {
         "LF: koin from breaking the fast statues": 28,
         "LF: koin near the waterfall": 108,
         "LF: koin behind the rock": 109,
-        "Complete Smoke mission 1": 300,
-        "Complete Smoke mission 2": 301,
-        "Complete Smoke mission 3": 302,
-        "Complete Smoke mission 4": 303,
-        "Complete Smoke mission 5": 304,
     },
     "Forest - Bridges": {
         "LF: koin from shooting at dragon koin": 29,
@@ -240,6 +235,17 @@ LOCATION_NAME_TO_ID = {loc: loc_id for k, v in REGION_NAME_LOCATIONS.items() for
 LOCATION_NAME_TO_ID |= {loc: loc_id for k, v in FINISHING_MOVES_LOCATIONS.items() for loc, loc_id in v.items()}
 LOCATION_NAME_TO_ID |= PURCHASE_LOCATIONS
 
+# Smoke is met in the Forest; only created with the smoke_missions option
+SMOKE_MISSION_REGION = "Forest"
+SMOKE_MISSION_LOCATIONS = {
+    "Complete Smoke mission 1": 300,
+    "Complete Smoke mission 2": 301,
+    "Complete Smoke mission 3": 302,
+    "Complete Smoke mission 4": 303,
+    "Complete Smoke mission 5": 304,
+}
+LOCATION_NAME_TO_ID |= SMOKE_MISSION_LOCATIONS
+
 
 class MKSMLocation(Location):
     game = "Mortal Kombat: Shaolin Monks"
@@ -253,6 +259,8 @@ def create_all_locations(world: MKSMWorld) -> None:
         create_purchase_locations(world)
     if world.options.fatalitysanity:
         create_finishing_moves_locations(world)
+    if world.options.smoke_missions:
+        world.get_region(SMOKE_MISSION_REGION).add_locations(SMOKE_MISSION_LOCATIONS, MKSMLocation)
 
 
 def create_region_locations(world: MKSMWorld) -> None:
