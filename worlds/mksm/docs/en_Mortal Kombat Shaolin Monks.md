@@ -4,7 +4,7 @@
 
 ### Items
 
-* Red Koins (60)
+* Red Koins (68)
 * Movement abilities:
     * Long Jump
     * Fist of Ruin
@@ -15,6 +15,7 @@
     * Swing
 * Progressive health upgrades (4)
 * Progressive Blood bar upgrades (3)
+* The final boss arena health pickup (the one from beating Kano)
 * 1000 EXP (filler)
 
 Optional (configure in options)
@@ -22,10 +23,14 @@ Optional (configure in options)
 * If `Shopsanity` is on:
     * Progressive special move upgrades (amount depends on character)
     * Combos (amount depends on character)
+* If `Lock Special Moves` is on:
+    * Another set of Progressive special move upgrades (one per move to unlock each one)
 * If `Randomize tournament victories` is on:
     * Tournament victories (5)
 * If `Mana upgrades` is on:
     * Progressive mana upgrade (4)
+* If `Portal Start` is on:
+    * Wu-Shi access (without the item the bridge to Wu-Shi from the portal won't appear)
 
 ### Locations
 
@@ -40,6 +45,8 @@ Optional (configure in options)
     * Purchasing an upgrade using EXP
 * If `Fatalitysanity` is on:
     * Performing each one of your character's finishing moves
+* If `Smoke Missions` is on:
+    * Completing a Smoke mission
 
 ## What is the goal of this game?
 
@@ -53,7 +60,7 @@ You can configure in the options which bosses are needed to complete the goal.
 
 ### Red Koin goal
 
-There are 60 Red Koin items shuffled in the item pool.
+There are 68 Red Koin items shuffled in the item pool.
 The goal is to find a set amount of them.
 You can configure in the options what percent of them are needed for goal.
 
@@ -85,20 +92,25 @@ The VS mode exclusive characters are also available, but due to how they work th
 special moves and combos, except for the R2 special move.\
 You can still purchase upgrades in the shop with VS characters if `Shopsanity` is on.
 
+If `Lock Special Moves` is on you will first need to get a progressive special move upgrade to use that special move.\
+That is for both story and VS characters.
+
 For some characters some Red Koins, specifically from shooting a projectile, are impossible to obtain.
 Therefore, the game will spawn those Red Koins without needing to shoot a projectile.
 
 ### Red Koin goal percent
 
-What percent of the 60 Red Koins are needed for goal.
+What percent of the 68 Red Koins are needed for goal.
 
 Choice is a number from 0 to 100, for example:
 
 * 0 means collecting Red Koins is not required to complete the run, and they will become filler items.
-* 80 (default) means you need 48/60 koins to complete the goal.
-* 100 means you need all 60 Red Koins to complete the goal.
+* 80 (default) means you need 54/68 koins to complete the goal.
+* 100 means you need all 68 Red Koins to complete the goal.
 
-There is a tracker in the pause menu that shows current amount / needed for goal / total.
+Sometimes when some extra location settings are disabled,
+there isn't enough room in the pool for all 68 koins.\
+There is a tracker in the pause menu that shows current amount / needed for goal / total in the pool.
 
 ### Boss Goal
 
@@ -130,15 +142,37 @@ moves [here](https://gamefaqs.gamespot.com/ps2/925007-mortal-kombat-shaolin-monk
 If on, adds checks for purchasing special move upgrades and combos in the pause menu.
 If off, the shop acts like in the vanilla game, special move upgrades and combos are not randomized.
 
+If `Lock Special Moves` is on and `Shopsanity` is off, you still need to unlock a special move before being able to buy
+upgrades for that move.
+
+### Smoke Missions
+
+If on, adds checks for completing each of the 5 Smoke missions.
+
+Mission progress is autosaved.
+
+### Lock Special Moves
+
+If on, adds one more set of progressive special move upgrades, one per move,
+and makes it so now you have to get a special move upgrade before being able to use that special move.
+
+If `Shopsanity` is off, you still need to unlock a special move before being able to buy upgrades for it.
+
 ### Skip Tutorial
 
 If on, the game skips all the beginning tutorials in Goro's Lair.
-Irrelevant when `Wu-Shi Academy start` is on.
+Irrelevant when `Portal start` is on.
 
-### Wu-Shi Academy start
+### Portal start
 
-If on, pressing new game will not put you in the normal Goro's Lair start but in the first area of Wu-Shi Academy.
+If on, pressing new game will not put you in the normal Goro's Lair start but in the Portal.
+In order to have more varied seeds the game will prevent access to
+Wu-Shi Academy until getting the `Wu-Shi access` item.
+Without the item the bridge to the portal to Wu-Shi will not appear.
 You can still get to Goro's Lair from Wu-Shi after finding the Fist of Ruin ability.
+
+Because the ko-op only red koins are collectible,
+there is always a check you can do by collecting the ko-op only red koin near the start so you're never stuck.
 
 Turn this option on if you're more familiar with the game and want a faster start and more varied seeds.
 Turning this option on means you don't need to find Long Jump immediately to leave Goro's Lair,
@@ -161,6 +195,9 @@ The vanilla game doesn't include mana upgrades, so here it's an optional feature
 If on, adds 4 mana upgrade items to the item pool,
 each upgrade increases your max mana by about 25%, meaning that your max mana is doubled after getting all 4 upgrades.
 
+Mana regenerates faster with each upgrade,
+so a full bar takes about the same time to refill no matter how many upgrades you have.
+
 ## Logic
 
 ### Abilities
@@ -172,8 +209,9 @@ Logic requires you to have the required abilities to collect Red Koins.
 
 Here's a small overview of the main areas and their logic:
 
-* Goro's Lair: Fist of Ruin (if `Wu-Shi Academy start` is on)
-* Wu-Shi Academy: Long Jump / Double Jump (if `Wu-Shi Academy start` is off)
+* Goro's Lair: Fist of Ruin (if `Portal start` is on)
+* Wu-Shi Academy: Long Jump / Double Jump (if `Portal start` is off), Wu-Shi access (if `Portal start` is on),
+  or by beating Barak
 * Evil Monastery: Long Jump / Double Jump
 * Living Forest: Fist of Ruin
 * Soul Tombs: Wall Climb
@@ -237,10 +275,16 @@ It is recommended to not overwrite your save at Wu-Shi Academy,
 because it's the nearest save file to the Portal.
 Meaning you can always come back to it when you want to go to a new area.
 
+If `Portal Start` is on then you can always press New Game to go back to the portal.
+
+If `Smoke Missions` is on then Smoke Mission progress is autosaved, meaning you can accept a mission,
+quit to menu, load a different save,
+complete the mission, load a save near Smoke, then talk to him to complete the mission.
+
 **Notes:**
 
 * You should always choose New Game in the main menu to start a run.
-* You shouldn't load a save file that isn't part of your current run, it can mess with the game progress.
+* If you try to load a save file that is not associated with your current slot then the client will notify you.
 * Some areas in the game allow you to enter, but not to leave without a required ability,
   it is safe to enter those areas, collect the checks that are there then exit to main menu and load a different save
   file.
@@ -250,7 +294,7 @@ Meaning you can always come back to it when you want to go to a new area.
       even if you have Double Jump, the jump to get to the top of the room is really hard,
       so it's safe to exit to menu and load the save spot from the start of the room,
       using Double Jump to clear the broken bridge is possible and logic expects you to do it.
-    * Entering the Reptile fight without Long Jump means you're unable to complete the snake sequence.
+    * Entering the Reptile fight without Long Jump / Double Jump means you're unable to complete the snake sequence.
     * Also entering the Reptile fight without Wall Climb means you can't leave the arena after the fight, it is safe to
       exit to menu after beating Reptile and getting the check for beating him.
     * The area in Wu-Shi Academy where you unlock Wall Run, without Wall Run you can't leave the area.
@@ -262,6 +306,10 @@ Meaning you can always come back to it when you want to go to a new area.
   without returning to the main room and seeing the laser.
   If you don't return to the main room naturally, the game doesn't spawn the laser to open the Baraka door.
     * In that case you can manually walk back to the Orochi room, then back to the main room.
+* If you got the `Wu-Shi access` item while in the portal starting room,
+  leave and return to the room in order to make the bridge appear.
+* Beating Kano no longer unlocks the health pickup in the final boss arena,
+  the `Final boss health pickup` item does.
 
 The general flow of the run is this:
 
@@ -277,8 +325,9 @@ Deathlink is supported and can be turned on by using the `/deathlink` command in
 
 * Removed needing to perform a Fatality / Multality / Brutality to progress the game
   in the rooms where you acquire them. That means you can complete the game without unlocking the Blood bar.
-* Made it so that the Red Koin that is in the room where you unlock the Brutality after beating Reptile is spawned in
-  without needing to beat Reptile.
+* Made it so all ko-op Red koins can be collected, you can open ko-op doors by pressing only one of the buttons.
+* Made it so that the Red Koin that is in the room where you unlock the Brutality after beating Reptile
+  can be collected without beating Reptile first.
 * Made it so that the room before the Goro fight is pre-completed,
   meaning the portal to the Dead Pool is always open,
   and you don't have to beat Goro to progress.
