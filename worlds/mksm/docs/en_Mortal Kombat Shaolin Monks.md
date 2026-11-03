@@ -24,13 +24,13 @@ Optional (configure in options)
     * Progressive special move upgrades (amount depends on character)
     * Combos (amount depends on character)
 * If `Lock Special Moves` is on:
-    * Another set of Progressive special move upgrades (one per move to unlock each one)
+    * Another set of progressive special move upgrades (one per move to unlock each one)
 * If `Randomize tournament victories` is on:
     * Tournament victories (5)
-* If `Mana upgrades` is on:
+* If `Mana Upgrades` is on:
     * Progressive mana upgrade (4)
 * If `Portal Start` is on:
-    * Wu-Shi access (without the item the bridge to Wu-Shi from the portal won't appear)
+    * Wu-Shi access (without the item the bridge to Wu-Shi from the Portal won't appear)
 
 ### Locations
 
@@ -143,7 +143,8 @@ If on, adds checks for purchasing special move upgrades and combos in the pause 
 If off, the shop acts like in the vanilla game, special move upgrades and combos are not randomized.
 
 If `Lock Special Moves` is on and `Shopsanity` is off, you still need to unlock a special move before being able to buy
-upgrades for that move.
+upgrades for that move.\
+If both are on, you can buy the upgrade checks for a special move in the shop even before you unlock it.
 
 ### Smoke Missions
 
@@ -156,23 +157,26 @@ Mission progress is autosaved.
 If on, adds one more set of progressive special move upgrades, one per move,
 and makes it so now you have to get a special move upgrade before being able to use that special move.
 
-If `Shopsanity` is off, you still need to unlock a special move before being able to buy upgrades for it.
+If `Shopsanity` is off, you still need to unlock a special move before being able to buy upgrades for it.\
+If `Shopsanity` is on, you can buy a special move's upgrade checks in the shop even before you unlock the move.
 
 ### Skip Tutorial
 
 If on, the game skips all the beginning tutorials in Goro's Lair.
-Irrelevant when `Portal start` is on.
+Irrelevant when `Portal Start` is on.
 
-### Portal start
+### Portal Start
 
 If on, pressing new game will not put you in the normal Goro's Lair start but in the Portal.
 In order to have more varied seeds the game will prevent access to
-Wu-Shi Academy until getting the `Wu-Shi access` item.
+Wu-Shi Academy from the Portal until getting the `Wu-Shi access` item.
 Without the item the bridge to the portal to Wu-Shi will not appear.
+You can also reach Wu-Shi Academy without the item by beating Baraka in the Soul Tombs
+and taking the portal after his fight.
 You can still get to Goro's Lair from Wu-Shi after finding the Fist of Ruin ability.
 
-Because the ko-op only red koins are collectible,
-there is always a check you can do by collecting the ko-op only red koin near the start so you're never stuck.
+Because the ko-op only Red Koins are collectible,
+there is always a check you can do by collecting the ko-op only Red Koin near the start so you're never stuck.
 
 Turn this option on if you're more familiar with the game and want a faster start and more varied seeds.
 Turning this option on means you don't need to find Long Jump immediately to leave Goro's Lair,
@@ -209,12 +213,13 @@ Logic requires you to have the required abilities to collect Red Koins.
 
 Here's a small overview of the main areas and their logic:
 
-* Goro's Lair: Fist of Ruin (if `Portal start` is on)
-* Wu-Shi Academy: Long Jump / Double Jump (if `Portal start` is off), Wu-Shi access (if `Portal start` is on),
-  or by beating Barak
+* Goro's Lair: Fist of Ruin (if `Portal Start` is on)
+* Wu-Shi Academy: Long Jump / Double Jump (if `Portal Start` is off), Wu-Shi access (if `Portal Start` is on),
+  or by beating Baraka
 * Evil Monastery: Long Jump / Double Jump
 * Living Forest: Fist of Ruin
 * Soul Tombs: Wall Climb
+    * Baraka's arena requires Fist of Ruin, and a projectile special move if `Lock Special Moves` is on
 * Wastelands: Wall Climb + (Wall Jump / (Wall Run + Double Jump))
     * inner areas of Wastelands require Fist of Ruin and Wall Run
 * Netherrealm: Swing + (Double Jump / Wall Run)
@@ -233,7 +238,7 @@ If `Fatalitysanity` is on, the required amount of Blood bar upgrades is needed t
 ### Shopsanity
 
 If `Shopsanity` is on, the logic expects you to be able to reach a certain amount of main bosses before being able to
-buy upgrades
+buy upgrades.
 
 In general, logic expects you to buy upgrades in order, from least expensive to most expensive.
 Pricing and amounts of upgrades vary by character.
@@ -247,6 +252,35 @@ Pricing and amounts of upgrades vary by character.
 You can obviously farm EXP to buy all upgrades early, which makes them out of logic checks.
 Generally you're not expected to farm, unless you haven't been doing your combos and barely earning EXP throughout the
 game.
+
+### Lock Special Moves
+
+If `Lock Special Moves` is on, logic expects you to unlock your character's projectile special move before:
+
+* Collecting the Red Koins from shooting a dragon koin, the closed eye in the Living Forest, or the moon in Goro's Lair.
+* Entering Baraka's arena in the Soul Tombs.
+
+The projectile special move is:
+
+* Square for Liu Kang, Sub-Zero, Baraka and Johnny Cage
+* Circle for Kung Lao, Scorpion and Kitana
+* Square or Circle for Reptile
+
+Characters who can't shoot those Red Koins get them spawned without shooting (see `Character`),
+so for them those Red Koins don't need the projectile special move.
+
+The Red Koin from launching a Tarkatan onto the flying bird in the Soul Tombs needs your R2 special move
+upgraded twice, so one more R2 special move upgrade if the move is locked.
+
+### Smoke Missions
+
+If `Smoke Missions` is on, logic expects you to complete the missions in order:
+
+* Mission 1: reaching the Soul Tombs
+* Mission 2: reaching Wu-Shi Academy, with Fist of Ruin
+* Mission 3: reaching the Soul Tombs
+* Mission 4: Long Jump or Double Jump
+* Mission 5: right after mission 4
 
 ### The Foundry
 
@@ -265,7 +299,7 @@ and it restores it when you re-enter the game.
 That means you can safely exit to main menu and press New Game to go back to the starting area, as the Archipelago specs
 require.
 
-That also means that if you make different save files in different spot in the game,
+That also means that if you make different save files in different spots in the game,
 you can load them to act as a sort of fast travel.
 
 All checks, upgrades and EXP are shared between save files while the client runs, so you won't lose progress loading an
@@ -275,7 +309,7 @@ It is recommended to not overwrite your save at Wu-Shi Academy,
 because it's the nearest save file to the Portal.
 Meaning you can always come back to it when you want to go to a new area.
 
-If `Portal Start` is on then you can always press New Game to go back to the portal.
+If `Portal Start` is on then you can always press New Game to go back to the Portal.
 
 If `Smoke Missions` is on then Smoke Mission progress is autosaved, meaning you can accept a mission,
 quit to menu, load a different save,
@@ -284,7 +318,11 @@ complete the mission, load a save near Smoke, then talk to him to complete the m
 **Notes:**
 
 * You should always choose New Game in the main menu to start a run.
-* If you try to load a save file that is not associated with your current slot then the client will notify you.
+* If you try to load a save file that is not associated with your current slot then the client will notify you,
+  and it will stop changing the game until you return to the main menu and load a save from your current slot or
+  press New Game.
+* Red Koins that get checked from outside the game (for example by `!collect` or a release) won't spawn anymore
+  the next time you enter their room.
 * Some areas in the game allow you to enter, but not to leave without a required ability,
   it is safe to enter those areas, collect the checks that are there then exit to main menu and load a different save
   file.
@@ -306,10 +344,8 @@ complete the mission, load a save near Smoke, then talk to him to complete the m
   without returning to the main room and seeing the laser.
   If you don't return to the main room naturally, the game doesn't spawn the laser to open the Baraka door.
     * In that case you can manually walk back to the Orochi room, then back to the main room.
-* If you got the `Wu-Shi access` item while in the portal starting room,
+* If you got the `Wu-Shi access` item while in the Portal starting room,
   leave and return to the room in order to make the bridge appear.
-* Beating Kano no longer unlocks the health pickup in the final boss arena,
-  the `Final boss health pickup` item does.
 
 The general flow of the run is this:
 
@@ -325,13 +361,15 @@ Deathlink is supported and can be turned on by using the `/deathlink` command in
 
 * Removed needing to perform a Fatality / Multality / Brutality to progress the game
   in the rooms where you acquire them. That means you can complete the game without unlocking the Blood bar.
-* Made it so all ko-op Red koins can be collected, you can open ko-op doors by pressing only one of the buttons.
+* Made it so all ko-op Red Koins can be collected, you can open ko-op doors by pressing only one of the buttons.
+* The health pickup in the final boss arena is unlocked by the `Final boss health pickup` item instead of by beating
+  Kano.
 * Made it so that the Red Koin that is in the room where you unlock the Brutality after beating Reptile
   can be collected without beating Reptile first.
 * Made it so that the room before the Goro fight is pre-completed,
   meaning the portal to the Dead Pool is always open,
   and you don't have to beat Goro to progress.
-* Added Mana upgrades that are shuffled into the pool if `Mana upgrades` is turned on.
+* Added Mana upgrades that are shuffled into the pool if `Mana Upgrades` is turned on.
 * Made it so that if `Randomize tournament victories` is on, you don't need to beat all bosses to open the Foundry door,
   only requiring to find all 5 tournament victories.
 * Made it so that the UI for the health bar and EXP never leave the screen, so you can always see incoming messages.
@@ -366,4 +404,4 @@ To avoid this fully restart the game before going to fight Mileena, exiting to m
 ### In-game messages
 
 Messages disappear after a few seconds, messages can disappear during cutscenes
-so sometimes you might not see new messages, always check the client itself for missed messages
+so sometimes you might not see new messages, always check the client itself for missed messages.

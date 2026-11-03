@@ -132,7 +132,7 @@ class PortalStart(Toggle):
 
     This option allows for faster starts and more varied seeds.
     """
-    display_name = "Portal start"
+    display_name = "Portal Start"
 
 
 class RandomizeTournamentVictories(DefaultOnToggle):
