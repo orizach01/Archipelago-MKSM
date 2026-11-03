@@ -45,8 +45,6 @@ if TYPE_CHECKING:
 async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
     """Called once per tick by the client's main loop."""
     # TODO traps
-    # TODO option to have special moves start locked if no shopsanity,
-    #  maybe if shopsanity is on still make it so you need to unlock the item before buying upgrades to it
     if ap_connected and ctx.slot_data is not None:
         loop = asyncio.get_running_loop()
         current_time = loop.time()
@@ -66,6 +64,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
             force_ui(ctx)
             return
         sync_foundry_door(ctx)
+        sync_sonya_health(ctx)
         clear_exp(ctx)
 
         set_portal_start(ctx)
@@ -165,6 +164,14 @@ def sync_foundry_door(ctx: MKSMContext) -> None:
     # putting the event at the start of the log array to not mess with the autosave system
     new_array = flatten_events([FOUNDRY_DOOR_OPEN_EVENT]) + current_events
     ctx.game_interface.clear_event_log(bytes(new_array), ctx.save_marker)
+
+
+def sync_sonya_health(ctx: MKSMContext) -> None:
+    """Freeing Sonya in the final boss room (and the health pickup it spawns) is gated by
+    the game event Kano's fatality sets. Hold it to the item instead; the Kano fight
+    itself doesn't look at it."""
+    received = any(item.item == ITEM_NAME_TO_ID["Final boss health pickup"] for item in ctx.items_received)
+    ctx.game_interface.set_sonya_health_flag(int(received))
 
 
 def clear_exp(ctx: MKSMContext) -> None:

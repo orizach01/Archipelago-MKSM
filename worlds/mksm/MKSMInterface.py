@@ -462,6 +462,11 @@ class MKSMInterface(GameInterface):
         if self._read32(inst_addr) != 0:
             self._write32(inst_addr, 0)
 
+    def set_sonya_health_flag(self, value: int) -> None:
+        addr = self.addresses.get("SONYA_HEALTH_FLAG")
+        if self._read32(addr) != value:
+            self._write32(addr, value)
+
     def set_foundry_door_flag(self, value: int) -> None:
         self._write8(self.addresses.get("FOUNDRY_DOOR_FLAG"), value)
 

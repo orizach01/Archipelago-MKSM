@@ -33,6 +33,7 @@ ITEM_NAME_TO_ID = {
     "Tournament victory": 21,
     "Mana upgrade": 22,
     "Wu-Shi access": 23,
+    "Final boss health pickup": 24,
 }
 
 DEFAULT_ITEM_CLASSIFICATIONS = {
@@ -46,6 +47,7 @@ DEFAULT_ITEM_CLASSIFICATIONS = {
     "Blood bar": ItemClassification.progression,
     "Tournament victory": ItemClassification.progression,
     "Wu-Shi access": ItemClassification.progression,
+    "Final boss health pickup": ItemClassification.useful,
     "Red Koin": ItemClassification.progression_deprioritized_skip_balancing,
     "Combo 1": ItemClassification.useful,
     "Combo 2": ItemClassification.useful,
@@ -106,6 +108,7 @@ def create_all_items(world: MKSMWorld) -> None:
         itempool += [world.create_item(f"{move} special upgrade") for move in ("Square", "Triangle", "Circle", "R2")]
 
     itempool += [world.create_item("Health upgrade") for _ in range(HEALTH_UPGRADE_AMOUNT)]
+    itempool.append(world.create_item("Final boss health pickup"))
 
     if world.options.mana_upgrades:
         itempool += [world.create_item("Mana upgrade") for _ in range(MANA_UPGRADE_AMOUNT)]

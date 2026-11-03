@@ -244,6 +244,11 @@ ADDRESSES = {
         # changes nothing) and not in the ability flags, and the door-opening events can't
         # be stripped because 0x3e doubles as the cutscene's "already played" marker.
         "FOUNDRY_DOOR_FLAG": 0xc2e04c,
+        # Game event 123, set by Kano's fatality (map 0x48). The final boss room (map 0x49)
+        # checks it to let you free Sonya, which spawns a health pickup. Nothing else reads
+        # it: the Kano fight itself is tracked in the event log, so holding this at 0 only
+        # keeps the pickup locked. The client sets it from the "Final boss health pickup" item.
+        "SONYA_HEALTH_FLAG": 0xc2e0e0,
 
         "STARTING_AREA": 0x5e2fc4,
         "MAIN_MENU_OPTION": 0x5ca2ac,
