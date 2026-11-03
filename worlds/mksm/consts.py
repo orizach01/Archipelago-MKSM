@@ -32,6 +32,13 @@ class GameState(Enum):
 EVENT_RECORD_SIZE = 8
 EVENT_LOG_SIZE = 16000  # bytes the game reserves for EVENT_LOG_ARRAY
 
+# Save marker: the last 8 bytes of the event log array hold "APMK" + a 32-bit hash of the
+# seed name and slot. The log lives in the save object, which the game copies to and from
+# the memory card as one block, so the marker is saved with every save. The game would need
+# ~2000 events to reach these bytes.
+SAVE_MARKER_MAGIC = b"APMK"
+SAVE_MARKER_SIZE = 8
+
 
 def _make_event(room: int, event: int):
     return tuple([room, 0, 0, 0, event, 0, 0, 0])

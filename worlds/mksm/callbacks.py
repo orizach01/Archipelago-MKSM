@@ -15,7 +15,7 @@ from NetUtils import ClientStatus
 from .consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, ANIMATIONS_TO_LOCATION_NAME, \
     FOUNDRY_DOOR_OPEN_EVENT, TOURNAMENT_VICTORY_AMOUNT, \
     FILLER_EXP, EVENT_RECORD_SIZE, chunk_events, flatten_events, PORTAL_START_AREA, DEFAULT_START_AREA, \
-    MANA_UPGRADE_AMOUNT, HEALTH_UPGRADE_AMOUNT, SMOKE_MISSIONS, SMOKE_FLAGS_POLL_SECONDS
+    MANA_UPGRADE_AMOUNT, HEALTH_UPGRADE_AMOUNT, SMOKE_MISSIONS, SMOKE_FLAGS_POLL_SECONDS, SAVE_MARKER_MAGIC
 from .items import ITEM_NAME_TO_ID
 from .locations import LOCATION_NAME_TO_ID
 from .options import BossGoal
@@ -55,6 +55,16 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
 
         read_game_state(ctx)
         clear_events(ctx)
+        if getattr(ctx, "wrong_save", False):
+            return  # a save from another seed/slot is loaded: don't read or write anything
+        if ctx.game_state == GameState.MAIN_MENU:
+            # Loading a save copies it into the game while still at the main menu, so writing
+            # this slot's state (exp, abilities, upgrades...) here would overwrite it before
+            # clear_events can check whose save it is. Only patch the game code that must be in
+            # place before New Game is pressed; everything else runs once the menu is left.
+            set_portal_start(ctx)
+            force_ui(ctx)
+            return
         sync_foundry_door(ctx)
         clear_exp(ctx)
 
@@ -93,12 +103,35 @@ def clear_events(ctx: MKSMContext):
     if ctx.game_state == GameState.GAMEPLAY:
         return
 
+    if ctx.game_state == GameState.MAIN_MENU:
+        # Loading a save copies it into the save object while the game is still at the main
+        # menu, so writing here could overwrite its marker before it is checked. Writing at
+        # the menu is pointless anyway: loading replaces the whole save object.
+        ctx.wrong_save = False
+        return
+
+    if getattr(ctx, "wrong_save", False):
+        return
+
+    marker = ctx.game_interface.read_save_marker()
+    # A brand-new game has an empty event log; a loaded save always has events. New Game
+    # doesn't clear the old save data in memory, so a previous save's marker can still be
+    # there - the event count, not the marker, is what identifies a new game.
+    if marker != ctx.save_marker and ctx.game_interface.get_event_count() > 0:
+        reason = ("belongs to a different Archipelago seed or slot" if marker.startswith(SAVE_MARKER_MAGIC)
+                  else "isn't from this Archipelago slot")
+        ctx.wrong_save = True
+        ctx.game_interface.logger.warning(
+            f"This save {reason}. The client won't touch the game until you return to "
+            f"the main menu and load this slot's save or start a new game.")
+        return
+
     if ctx.event_array_key not in ctx.stored_data or ctx.stored_data[ctx.event_array_key] is None:
         server_array = default_event_array(ctx.slot_data)
     else:
         server_array = list(ctx.stored_data[ctx.event_array_key])
 
-    ctx.game_interface.clear_event_log(bytes(server_array))
+    ctx.game_interface.clear_event_log(bytes(server_array), ctx.save_marker)
 
     # Smoke's missions also depend on smoke flags and game events outside the event log;
     # restore those together with it so the three always agree.
@@ -129,7 +162,7 @@ def sync_foundry_door(ctx: MKSMContext) -> None:
 
     # putting the event at the start of the log array to not mess with the autosave system
     new_array = flatten_events([FOUNDRY_DOOR_OPEN_EVENT]) + current_events
-    ctx.game_interface.clear_event_log(bytes(new_array))
+    ctx.game_interface.clear_event_log(bytes(new_array), ctx.save_marker)
 
 
 def clear_exp(ctx: MKSMContext) -> None:

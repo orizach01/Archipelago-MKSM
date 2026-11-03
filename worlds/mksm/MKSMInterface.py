@@ -4,7 +4,7 @@ from typing import Optional, Dict
 
 from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OPTION_TO_VALUE_IN_GAME, YES_DEBUG, \
     NO_DEBUG, DEFAULT_EXP_STRING, DEFAULT_EXP_FMT, MESSAGE_EXP_FMT, SAVING_ANIMATION, BUTTONS_ASCII, \
-    ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, TOURNAMENT_VICTORY_AMOUNT, \
+    ANIMATIONS_TO_LOCATION_NAME, ABILITY_ANIMATION, EVENT_RECORD_SIZE, EVENT_LOG_SIZE, SAVE_MARKER_SIZE, TOURNAMENT_VICTORY_AMOUNT, \
     MANA_UPGRADE_AMOUNT, MAX_MANA_UPGRADE_VALUES, PORTAL_MAP, PORTAL_TRIGGER_COUNT, WU_SHI_BRIDGE_CMD_COUNT, \
     TRIGGER_TABLE, \
     TRIGGER_SIZE, TRIGGER_CMD_COUNT, TRIGGER_COND_COUNT, COOP_TRIGGERS, COOP_COND_COUNT, SINGLE_PLAYER_TRIGGER_PATCHES, \
@@ -194,16 +194,17 @@ class MKSMInterface(GameInterface):
         self.invalidate_event_cache()
         self._last_written = None
 
-    def clear_event_log(self, event_data: bytes) -> None:
+    def clear_event_log(self, event_data: bytes, marker: bytes = b"") -> None:
+        """Writes the event log; `marker` (if given) goes in its last SAVE_MARKER_SIZE bytes."""
         event_log_addr = self.addresses.get("EVENT_LOG_ARRAY")
         total_events_addr = self.addresses.get("TOTAL_EVENTS")
         expected_count = len(event_data) // EVENT_RECORD_SIZE
 
-        # Never write past the game's log: a longer buffer would overwrite TOTAL_EVENTS and
-        # whatever game data follows it.
-        if len(event_data) > EVENT_LOG_SIZE:
+        # Never write past the game's log (a longer buffer would overwrite TOTAL_EVENTS and
+        # whatever game data follows it), and never let events overlap the marker.
+        if len(event_data) > EVENT_LOG_SIZE - len(marker):
             self.logger.warning(f"Refusing to write {len(event_data)} bytes of events "
-                                f"(the game's log holds {EVENT_LOG_SIZE}).")
+                                f"(the game's log holds {EVENT_LOG_SIZE - len(marker)}).")
             return
 
         # clear_events calls this every non-gameplay tick with the same server array, so
@@ -211,16 +212,26 @@ class MKSMInterface(GameInterface):
         # array already holds exactly this and the game hasn't touched the count since:
         # one round-trip instead of 2001. Never shrink the write itself - the trailing
         # zeros are what let get_event_block recognise a garbage TOTAL_EVENTS.
-        if self._last_written == event_data and self._read32(total_events_addr) == expected_count:
+        if self._last_written == event_data + marker and self._read32(total_events_addr) == expected_count:
             return
 
         buffer = bytearray(EVENT_LOG_SIZE)
         buffer[0:len(event_data)] = event_data
+        if marker:
+            buffer[EVENT_LOG_SIZE - len(marker):] = marker
         self._write_bytes(event_log_addr, bytes(buffer))
         self._write32(total_events_addr, expected_count)
 
         self.invalidate_event_cache()
-        self._last_written = bytes(event_data)
+        self._last_written = bytes(event_data) + marker
+
+    def get_event_count(self) -> int:
+        return self._read32(self.addresses.get("TOTAL_EVENTS"))
+
+    def read_save_marker(self) -> bytes:
+        """The last SAVE_MARKER_SIZE bytes of the event log, where the save marker lives."""
+        addr = self.addresses.get("EVENT_LOG_ARRAY") + EVENT_LOG_SIZE - SAVE_MARKER_SIZE
+        return bytes(self._read_bytes(addr, SAVE_MARKER_SIZE))
 
     def get_event_block(self) -> bytes:
         total_events = self._read32(self.addresses.get("TOTAL_EVENTS"))
@@ -235,7 +246,8 @@ class MKSMInterface(GameInterface):
             return self._event_block_cache
 
         # A garbage count must never make us read past the log into unrelated game memory
-        total_bytes = min(total_events * EVENT_RECORD_SIZE, EVENT_LOG_SIZE)
+        # (and never into the save marker in the log's last bytes)
+        total_bytes = min(total_events * EVENT_RECORD_SIZE, EVENT_LOG_SIZE - SAVE_MARKER_SIZE)
         raw = self._read_bytes(self.addresses.get("EVENT_LOG_ARRAY"), total_bytes)
 
         # TOTAL_EVENTS occasionally reads back garbage/oversized (e.g. a boot/reset race) -

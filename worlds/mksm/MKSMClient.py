@@ -12,6 +12,7 @@ import asyncio
 import multiprocessing
 import traceback
 import typing
+import zlib
 from collections import deque
 
 tracker_loaded = False
@@ -28,7 +29,7 @@ from CommonClient import server_loop, get_base_parser, handle_url_arg, logger, \
 
 import Utils
 from worlds.mksm.consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, \
-    chunk_events, flatten_events
+    chunk_events, flatten_events, SAVE_MARKER_MAGIC
 
 from .MKSMInterface import MKSMInterface
 from .callbacks import game_watcher as run_callbacks, on_pause_changed
@@ -134,6 +135,12 @@ class MKSMContext(SuperContext):
     @property
     def exp_items_given_key(self):
         return self._seed_key("EXP_ITEMS_GIVEN")
+
+    @property
+    def save_marker(self) -> bytes:
+        """Identifies this seed and slot inside the game's save (see SAVE_MARKER_MAGIC)."""
+        seed_hash = zlib.crc32(f"{self.seed_name}:{self.slot}".encode())
+        return SAVE_MARKER_MAGIC + seed_hash.to_bytes(4, "little")
 
     @property
     def smoke_state_key(self):
