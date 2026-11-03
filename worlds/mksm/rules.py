@@ -7,7 +7,7 @@ from rule_builder.options import OptionFilter
 from rule_builder.rules import Has, Rule, CanReachRegion, CanReachLocation
 from .consts import TOURNAMENT_VICTORY_AMOUNT
 from .locations import FINISHING_MOVES_LOCATIONS
-from .options import BossGoal, Shopsanity, RandomizeTournamentVictories, PortalStart, LockSpecialMoves
+from .options import BossGoal, Shopsanity, RandomizeTournamentVictories, PortalStart, LockSpecialMoves, Character
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
@@ -24,20 +24,39 @@ MULTALITY: Rule = Has("Blood bar", count=2)
 BRUTALITY: Rule = Has("Blood bar", count=3)
 # Needs R2 upgraded twice. With lock_special_moves the first R2 item only unlocks the move;
 # with shopsanity off the upgrades are bought in the shop, so only the unlock is an item.
-LAUNCHING_THROW = (Has("R2 special upgrade",
-                       count=2,
-                       options=[OptionFilter(Shopsanity, True), OptionFilter(LockSpecialMoves, False)],
-                       filtered_resolution=True,
-                       )
-                   & Has("R2 special upgrade",
-                         count=3,
-                         options=[OptionFilter(Shopsanity, True), OptionFilter(LockSpecialMoves, True)],
-                         filtered_resolution=True,
-                         )
-                   & Has("R2 special upgrade",
-                         options=[OptionFilter(Shopsanity, False), OptionFilter(LockSpecialMoves, True)],
-                         filtered_resolution=True,
-                         ))
+LAUNCHING_THROW = (
+        Has("R2 special upgrade",
+            count=1,
+            options=[OptionFilter(Shopsanity, False), OptionFilter(LockSpecialMoves, True)],
+            filtered_resolution=True,
+            )
+        & Has("R2 special upgrade",
+              count=2,
+              options=[OptionFilter(Shopsanity, True), OptionFilter(LockSpecialMoves, False)],
+              filtered_resolution=True,
+              )
+        & Has("R2 special upgrade",
+              count=3,
+              options=[OptionFilter(Shopsanity, True), OptionFilter(LockSpecialMoves, True)],
+              filtered_resolution=True,
+              )
+)
+
+
+def _move_unlock(item: str, characters: list[int]) -> Rule:
+    """Has the move's unlock item, but only when lock_special_moves is on and the character uses that move."""
+    return Has(item,
+               options=[OptionFilter(LockSpecialMoves, True), OptionFilter(Character, characters, "in")],
+               filtered_resolution=True)
+
+
+# Characters not listed (VS characters) always pass, as does lock_special_moves being off
+PROJECTILE_MOVE = (_move_unlock("Square special upgrade", [Character.option_liu_kang, Character.option_sub_zero])
+                   & _move_unlock("Circle special upgrade", [Character.option_kung_lao, Character.option_scorpion]))
+# Same, but Scorpion and Sub-Zero always pass too
+MOON_RULE = (_move_unlock("Square special upgrade", [Character.option_liu_kang])
+             & _move_unlock("Circle special upgrade", [Character.option_kung_lao]))
+
 KITANA = Has("Kitana defeated item")
 REPTILE = Has("Reptile defeated item")
 BARAKA = Has("Baraka defeated item")
@@ -123,10 +142,12 @@ def set_purchase_rules(world: MKSMWorld) -> None:
 def set_all_location_rules(world: MKSMWorld) -> None:
     world.set_rule(world.get_location("GL: koin above the doorway"),
                    DOUBLE_JUMP | WALL_JUMP | WALL_RUN)
+    world.set_rule(world.get_location("GL: koin from shooting the moon"), MOON_RULE)
     world.set_rule(world.get_location("GL: koin above the breakable door"), DOUBLE_JUMP | WALL_JUMP)
     world.set_rule(world.get_location("WSA: koin after the tree branch swing"), SWING | DOUBLE_JUMP)
     world.set_rule(world.get_location("WSA: koin in the tree"), DOUBLE_JUMP)
     world.set_rule(world.get_location("EM: koin from breaking the statue"), FIST_OF_RUIN)
+    world.set_rule(world.get_location("EM: koin from shooting the dragon koin behind the window"), PROJECTILE_MOVE)
     world.set_rule(
         world.get_location("WSA: koin after the bamboo swing"),
         SWING | (DOUBLE_JUMP & (WALL_RUN | WALL_JUMP))
@@ -139,7 +160,10 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     world.set_rule(world.get_location("N: koin above the arch"), LONG_JUMP | DOUBLE_JUMP)
     world.set_rule(world.get_location("LF: koin behind the living tree"), DOUBLE_JUMP)
     world.set_rule(world.get_location("LF: Forest health upgrade"), WALL_CLIMB | DOUBLE_JUMP)
+    world.set_rule(world.get_location("LF: koin from shooting the closed eye"), PROJECTILE_MOVE)
+    world.set_rule(world.get_location("LF: koin from shooting at dragon koin"), PROJECTILE_MOVE)
     world.set_rule(world.get_location("W: koin found on the lion statue"), DOUBLE_JUMP | WALL_RUN)
+    world.set_rule(world.get_location("W: koin from shooting the dragon koin"), PROJECTILE_MOVE)
     world.set_rule(
         world.get_location("DP: koin from drowning enemies in both pools"),
         WALL_CLIMB | (WALL_JUMP & DOUBLE_JUMP)
@@ -158,12 +182,17 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     world.set_rule(world.get_location("ST: koin near the fan"), LONG_JUMP | DOUBLE_JUMP)
     world.set_rule(world.get_location("ST: koin from the destroyed soul tomb"), FIST_OF_RUIN)
     world.set_rule(world.get_location("ST: wall jump obtained"), WALL_RUN | DOUBLE_JUMP)
+    world.set_rule(world.get_location("ST: koin from shooting the dragon koin near the portal"), PROJECTILE_MOVE)
+    world.set_rule(world.get_location("ST: koin from shooting the dragon koin in the test your might room"),
+                   PROJECTILE_MOVE)
     world.set_rule(world.get_location("F: koin from wall jumping above the main room"), WALL_JUMP & DOUBLE_JUMP)
     world.set_rule(
         world.get_location("F: koin above the wood ceiling"),
         DOUBLE_JUMP & (WALL_JUMP | WALL_RUN)
     )
     world.set_rule(world.get_location("F: koin above the lava pit"), DOUBLE_JUMP)
+    world.set_rule(world.get_location("F: koin from shooting the dragon koin behind the breakable wall"),
+                   PROJECTILE_MOVE)
 
 
 def connect_regions(world: MKSMWorld) -> None:
