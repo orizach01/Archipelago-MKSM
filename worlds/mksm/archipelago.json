@@ -1,6 +1,7 @@
 {
 	"game": "Mortal Kombat: Shaolin Monks",
 	"minimum_ap_version": "0.6.7",
-	"world_version": "1.1.1",
-	"authors": ["orizach01"]
+	"world_version": "1.2.0",
+	"authors": ["orizach01"],
+	"github": "https://github.com/orizach01/Archipelago-MKSM"
 }
