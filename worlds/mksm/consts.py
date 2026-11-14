@@ -254,6 +254,15 @@ ADDRESSES = {
         "STARTING_AREA": 0x5e2fc4,
         "MAIN_MENU_OPTION": 0x5ca2ac,
 
+        # The three globals a loadmap trigger writes to ask for a room transition.
+        # load_map picks them up on its next pass, so writing them ourselves is an
+        # ordinary transition as far as the game is concerned - no debug menu needed.
+        # PENDING_TRANSITION is also how you tell one is already in flight: it is 1
+        # from the request until the new room is resident.
+        "PENDING_TRANSITION": 0x4d8bfc,
+        "DEST_MAP": 0x4d8c04,
+        "SPAWN_PARAM": 0x4d8c08,
+
         "NEW_GAME_MAP_INSTS": (
             (0x131090, 0x24040000),
             (0x12FE8C, 0x24050000),
@@ -508,6 +517,45 @@ WASTELAND_EVENTS = [
 ]
 
 
+# Blockers that shuffled entrances make unsatisfiable, pre-set so the door stays usable.
+#
+# The line between this list and a rule in regions.py is whether logic can express the
+# requirement. Abilities and "can reach region X" are both things AP tracks, so those get
+# rules - the junk doors in 0x21 reduce to wall climb + wall jump + reaching the base of
+# the room, and are logicked rather than listed here.
+#
+# What belongs here is anything AP cannot state as a rule: an object the player carries
+# between rooms, a cutscene that moves them, scenery with no gate behind it. A blocker
+# that is merely annoying to model does not qualify - if it reduces to items and regions,
+# write the rule. Every entry below says which of those it is, so the list cannot quietly
+# become a dumping ground for puzzles someone did not want to think about.
+#
+# (0x40, 0x40): the door at 0x40 spawn 3 (loadmap_65to72 -> 0x47) is unlocked with an axe
+# picked up in another room and carried back. 0x47 is the room holding the one-way to the
+# final boss, so if the axe cannot make the trip the seed has no goal. The nearest rule
+# would be "can reach the axe room", which quietly assumes the axe survives every shuffled
+# route in between - not something to rest the goal on.
+#
+# (0x6b, 0x3d): arriving at 0x6b spawn 2 plays a cutscene that immediately ejects you to
+# the Portal (0xc0), so the mouth cannot be stood in at all. Nothing a player holds stops
+# a cutscene, so there is no rule to write. Already in WU_SHI_SKIP_EVENTS, but that list
+# only applies when portal_start is on, and this has to hold either way.
+#
+# (0x80, 0x0e): a wall of bramble in the Living Forest entrance, cleared by trigger 0x0e.
+# This one is a rule-complexity call rather than an impossibility. Getting back to the
+# bridges area needs swing + wall climb; with the bramble still up it also needs double
+# jump, and clearing it is permanent - so the honest rule would be
+#     (swing & wall climb & double jump) | (swing & wall climb & bramble cleared)
+# a disjunction with an event on one branch, for a double jump the level never meant to
+# ask for. Pre-clearing collapses it to swing + wall climb, which is the real
+# requirement. No AP location is tied to the room.
+ENTRANCE_RANDO_EVENTS = [
+    *_make_event(0x40, 0x40),
+    *_make_event(0x6b, 0x3d),
+    *_make_event(0x80, 0x0e),
+]
+
+
 def default_event_array(slot_data):
     character = slot_data["character"]
     portal_start = slot_data["portal_start"]
@@ -525,6 +573,15 @@ def default_event_array(slot_data):
         default += GOROS_LAIR_SKIP_EVENTS
     if portal_start:
         default += WU_SHI_SKIP_EVENTS
+    # .get, not [], because the entrance-randomization option does not exist yet: this
+    # stays inert until it does, rather than breaking every seed in the meantime.
+    if slot_data.get("randomize_entrances"):
+        # Skip what another list already added - (0x6b, 0x3d) is also in
+        # WU_SHI_SKIP_EVENTS, and a duplicate would waste a slot in the log the
+        # game itself would never write, since its own append dedupes.
+        have = set(chunk_events(default))
+        default += flatten_events([e for e in chunk_events(ENTRANCE_RANDO_EVENTS)
+                                   if e not in have])
 
     return default
 

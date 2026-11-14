@@ -63,6 +63,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
             set_portal_start(ctx)
             force_ui(ctx)
             return
+        track_room(ctx)
         sync_foundry_door(ctx)
         sync_sonya_health(ctx)
         clear_exp(ctx)
@@ -279,6 +280,32 @@ def read_game_state(ctx) -> None:
         # can leave unchanged while replacing the array wholesale. A load always passes
         # through a non-gameplay state, so drop both beliefs on every transition.
         ctx.game_interface.forget_event_log_state()
+        if current_state == GameState.MAIN_MENU:
+            # Loading a save puts the player somewhere unrelated to where they were,
+            # so /previous must not be able to warp back into the old run's rooms.
+            ctx.room_history.clear()
+
+
+def track_room(ctx: MKSMContext) -> None:
+    """Remember where we have been, so /previous has somewhere to go back to.
+
+    Only (map, spawn) pairs that the game itself produced are recorded, which is
+    what makes the history safe to warp to: every one of them is a spot the game
+    put the player in through a normal transition.
+
+    A warp from /reload or /previous lands on a pair we already hold, so it does
+    not grow the history - reload is a no-op here, and /previous pops before it
+    warps, so arriving back re-records nothing new.
+    """
+    if ctx.game_state != GameState.GAMEPLAY:
+        return
+    if ctx.game_interface.is_transition_pending():
+        return      # mid-transition: the globals are the destination, not where we are
+
+    here = (ctx.game_interface.get_current_map(), ctx.game_interface.get_spawn())
+    if ctx.room_history and ctx.room_history[-1] == here:
+        return
+    ctx.room_history.append(here)
 
 
 def sync_red_koins(ctx: MKSMContext) -> None:

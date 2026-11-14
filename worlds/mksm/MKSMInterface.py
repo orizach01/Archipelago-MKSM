@@ -237,6 +237,31 @@ class MKSMInterface(GameInterface):
         self.invalidate_event_cache()
         self._last_written = bytes(event_data) + marker
 
+    def rewind_room_events(self, area: int, keep: int) -> int:
+        """Drop the trailing events for `area` that the server has not stored yet.
+
+        Same filter update_events_in_server uses to decide what NOT to autosave: the
+        log is append-only, so everything past the server's snapshot happened since
+        the last real room change, and the trailing run of it belonging to `area` is
+        this visit's. Dropping it makes leaving the room a rewind instead of a save.
+
+        `keep` is the server array's record count, which is the floor - events the
+        server already holds are past progress and are never touched.
+
+        Only the count is moved; the bytes past it are stale but unread, exactly as
+        they are after the game's own appends.
+        """
+        block = self.get_event_block()
+        count = len(block) // EVENT_RECORD_SIZE
+        end = count
+        while end > keep and block[(end - 1) * EVENT_RECORD_SIZE] == area:
+            end -= 1
+        if end == count:
+            return 0
+        self._write32(self.addresses.get("TOTAL_EVENTS"), end)
+        self.invalidate_event_cache()
+        return count - end
+
     def get_event_count(self) -> int:
         return self._read32(self.addresses.get("TOTAL_EVENTS"))
 
@@ -507,6 +532,30 @@ class MKSMInterface(GameInterface):
     def get_current_map(self) -> int:
         # STARTING_AREA is also the current map once in game
         return self._read32(self.addresses.get("STARTING_AREA"))
+
+    def get_spawn(self) -> int:
+        """Which entry point of the current room we came in at.
+
+        The game leaves the last transition's spawn param in place, so this still
+        reads the spawn we arrived by however long ago that was.
+        """
+        return self._read32(self.addresses.get("SPAWN_PARAM"))
+
+    def is_transition_pending(self) -> bool:
+        return self._read32(self.addresses.get("PENDING_TRANSITION")) != 0
+
+    def warp(self, area: int, spawn: int) -> bool:
+        """Ask for a transition the same way a loadmap trigger does.
+
+        Refuses while one is already in flight, because the second write would be
+        swallowed by the first and leave the game half-way between rooms.
+        """
+        if self.is_transition_pending():
+            return False
+        self._write32(self.addresses.get("DEST_MAP"), area)
+        self._write32(self.addresses.get("SPAWN_PARAM"), spawn)
+        self._write32(self.addresses.get("PENDING_TRANSITION"), 1)
+        return True
 
     def block_wu_shi_bridge(self) -> None:
         if self.get_current_map() != PORTAL_MAP:

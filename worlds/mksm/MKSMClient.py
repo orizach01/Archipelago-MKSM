@@ -29,7 +29,7 @@ from CommonClient import server_loop, get_base_parser, handle_url_arg, logger, \
 
 import Utils
 from worlds.mksm.consts import GameState, default_event_array, EVENTS_TO_LOCATION_NAME, \
-    chunk_events, flatten_events, SAVE_MARKER_MAGIC
+    chunk_events, flatten_events, SAVE_MARKER_MAGIC, EVENT_RECORD_SIZE
 
 from .MKSMInterface import MKSMInterface
 from .callbacks import game_watcher as run_callbacks, on_pause_changed
@@ -37,6 +37,7 @@ from .callbacks import game_watcher as run_callbacks, on_pause_changed
 EMULATOR_RECONNECT_DELAY = 5  # seconds between PCSX2 connection attempts
 TICK_INTERVAL = 0.01  # seconds between full game_watcher passes
 MAX_QUEUED_MESSAGES = 20  # cap on the in-game ticker backlog
+MAX_ROOM_HISTORY = 32  # how many (map, spawn) pairs /previous can walk back through
 WAITING_FOR_SERVER = "Waiting for player to connect to server"
 REQUIRED_SLOT_DATA = ("character", "red_koin_amount", "red_koin_need_percent", "boss_goal",
                       "fatalitysanity", "shopsanity", "portal_start", "skip_tutorial",
@@ -65,6 +66,93 @@ class MKSMCommandProcessor(ClientCommandProcessor):
 
         return True
 
+    def _can_warp(self) -> bool:
+        """Both warps need the game actually running a room to warp out of.
+
+        load_map has to be there to consume the request, so firing one from a
+        menu, a load or a cutscene leaves the game in a bad state rather than
+        doing nothing.
+        """
+        ctx: MKSMContext = self.ctx
+        if not ctx.game_interface.get_connection_state():
+            self.output("Not connected to the game.")
+            return False
+        if ctx.game_state != GameState.GAMEPLAY:
+            self.output("Only works during gameplay.")
+            return False
+        if ctx.game_interface.is_transition_pending():
+            self.output("A room transition is already in flight - try again in a moment.")
+            return False
+        if ctx.game_interface.is_currently_saving():
+            self.output("The game is saving - try again in a moment.")
+            return False
+        return True
+
+    def _rewind_room(self) -> int:
+        """Throw away what this visit did to the room, so leaving it is not a save.
+
+        The client only autosaves a room's events to the server when you leave it
+        for another room, so an ordinary room change is the commit. /reload and
+        /previous are room changes too and would commit the same way - this undoes
+        the uncommitted part first, which is what makes them a rewind.
+
+        Events the server already holds are the floor and are never touched, so
+        this can only ever discard the current visit.
+        """
+        ctx: MKSMContext = self.ctx
+        server_array = ctx.stored_data.get(ctx.event_array_key) or []
+        return ctx.game_interface.rewind_room_events(
+            ctx.game_interface.get_current_area(),
+            len(server_array) // EVENT_RECORD_SIZE)
+
+    def _cmd_reload(self) -> bool:
+        """
+        Rewinds the current room: undoes what you did in it this visit and puts you back
+        at the entrance you came in by. Use it if a door, a switch or an enemy did not
+        appear, or if you are wedged in the scenery.
+        """
+        ctx: MKSMContext = self.ctx
+        if not self._can_warp():
+            return False
+
+        area, spawn = ctx.game_interface.get_current_map(), ctx.game_interface.get_spawn()
+        dropped = self._rewind_room()
+        if not ctx.game_interface.warp(area, spawn):
+            self.output("Could not reload right now - try again in a moment.")
+            return False
+        self.output(f"Reloading area 0x{area:02x} at entrance {spawn}."
+                    + (f" Discarded {dropped} unsaved event(s) from this visit."
+                       if dropped else ""))
+        return True
+
+    def _cmd_previous(self) -> bool:
+        """
+        Rewinds out of this room: undoes what you did in it this visit and sends you back
+        to the room you came from, at the entrance you came into it by. Use it if a
+        randomized door has dropped you somewhere with no way out.
+        """
+        ctx: MKSMContext = self.ctx
+        if not self._can_warp():
+            return False
+        if len(ctx.room_history) < 2:
+            self.output("No previous room recorded yet.")
+            return False
+
+        # Drop where we are, then go to what is now the last entry. The warp itself
+        # re-records that room on arrival, so the history stays honest either way.
+        ctx.room_history.pop()
+        area, spawn = ctx.room_history[-1]
+        dropped = self._rewind_room()
+        if not ctx.game_interface.warp(area, spawn):
+            ctx.room_history.append((ctx.game_interface.get_current_map(),
+                                     ctx.game_interface.get_spawn()))
+            self.output("Could not go back right now - try again in a moment.")
+            return False
+        self.output(f"Going back to area 0x{area:02x}, entrance {spawn}."
+                    + (f" Discarded {dropped} unsaved event(s) from the room you left."
+                       if dropped else ""))
+        return True
+
     async def _cmd_deathlink(self):
         ctx: MKSMContext = self.ctx
         is_death_link = "DeathLink" in ctx.tags
@@ -88,6 +176,7 @@ class MKSMContext(SuperContext):
     was_dead: bool
     received_death: bool
     message_queue: deque
+    room_history: deque
     message_timer: float | None
     current_message: str | None
     last_time: float
@@ -109,6 +198,7 @@ class MKSMContext(SuperContext):
         self.was_dead = False
         self.received_death = False
         self.message_queue = deque(maxlen=MAX_QUEUED_MESSAGES)
+        self.room_history = deque(maxlen=MAX_ROOM_HISTORY)
         self.message_timer = None  # None means no message is currently being displayed
         self.current_message = None
 
