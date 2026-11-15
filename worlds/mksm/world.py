@@ -1,4 +1,5 @@
 from collections.abc import Mapping
+from types import ModuleType
 from typing import Any, Optional
 
 from BaseClasses import Tutorial
@@ -7,7 +8,7 @@ from Options import OptionError, Option
 from worlds.AutoWorld import World, WebWorld
 
 # Imports of your world's files must be relative.
-from . import items, locations, regions, rules  # , web_world
+from . import items, layouts, locations, rules  # , web_world
 
 from . import options as mksm_options  # rename due to a name conflict with World.options
 from .consts import FILLER_EXP
@@ -36,6 +37,23 @@ class MKSMWorld(World):
     game = "Mortal Kombat: Shaolin Monks"
 
     red_koin_amount: int
+
+    # The layout this seed is built with, picked in create_regions. Vanilla and
+    # entrance rando are separate modules under layouts/, each with the same
+    # four entry points.
+    layout: ModuleType
+
+    # Built by the entrance rando layout, which makes a region per room instead
+    # of per area. Empty in a vanilla seed.
+    #   reg[room, part]     -> Region   ("part" is None for a one-region room)
+    #   mouth[room, spawn]  -> Region   which region a door mouth sits in
+    reg: dict
+    mouth: dict
+
+    # Where each shuffled door now leads, for the client to write into the game:
+    #   {"<map hex>": {"<loadmap object>": [dest map, spawn]}}
+    # Empty in a vanilla seed. Built in connect_entrances, sent in slot data.
+    entrance_redirects: dict
 
     options_dataclass = mksm_options.MKSMOptions
     options: mksm_options.MKSMOptions
@@ -67,6 +85,14 @@ class MKSMWorld(World):
                     # You can also set .value directly but that won't work if you have OptionSets
                     setattr(self.options, key, opt.from_any(value))
 
+        if self.options.randomize_entrances:
+            # Entrance rando always starts at the Portal. Its region graph hangs
+            # off 0xc0, and the tutorial route out of Goro's Lair assumes doors
+            # that are no longer where it expects them. Set on the option rather
+            # than only in slot_data, so logic, the item pool and the spoiler all
+            # agree with what the client will do.
+            self.options.portal_start.value = 1
+
         no_bosses = self.options.boss_goal == mksm_options.BossGoal.option_no_bosses
         no_koins = self.options.red_koin_need_percent == 0
         if no_bosses and no_koins:
@@ -77,11 +103,23 @@ class MKSMWorld(World):
             )
 
     def create_regions(self) -> None:
-        regions.create_all_regions(self)
-        locations.create_all_locations(self)
+        self.layout = layouts.pick(self)
+
+        # Locations before connections: a connection's rule resolves the moment
+        # Region.connect is called, and a rule naming a location or a region
+        # looks it up then, to register the indirect condition. Resolve it
+        # before the thing exists and it raises. Nothing in location creation
+        # needs an entrance, so this order is safe for either layout.
+        self.layout.create_regions(self)
+        self.layout.create_locations(self)
+        self.layout.connect(self)
 
     def set_rules(self) -> None:
         rules.set_all_rules(self)
+        self.layout.set_rules(self)
+
+    def connect_entrances(self) -> None:
+        self.layout.connect_entrances(self)
 
     def create_items(self) -> None:
         items.create_all_items(self)
@@ -106,6 +144,8 @@ class MKSMWorld(World):
             "mana_upgrades": bool(self.options.mana_upgrades.value),
             "lock_special_moves": bool(self.options.lock_special_moves.value),
             "smoke_missions": bool(self.options.smoke_missions.value),
+            "randomize_entrances": bool(self.options.randomize_entrances.value),
+            "entrance_redirects": self.entrance_redirects,
             "options": self.options.as_dict("character",
                                             "red_koin_need_percent",
                                             "boss_goal",
@@ -117,6 +157,7 @@ class MKSMWorld(World):
                                             "mana_upgrades",
                                             "lock_special_moves",
                                             "smoke_missions",
+                                            "randomize_entrances",
                                             )
         }
 

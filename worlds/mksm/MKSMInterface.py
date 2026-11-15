@@ -11,7 +11,7 @@ from .consts import ADDRESSES, GameState, CharacterPurchaseAmounts, CHARACTER_OP
     TRIGGER_SIZE, TRIGGER_CMD_COUNT, TRIGGER_COND_COUNT, COOP_TRIGGERS, COOP_COND_COUNT, SINGLE_PLAYER_TRIGGER_PATCHES, \
     SMOKE_MISSIONS, SMOKE_FLAGS_OFFSET, SMOKE_CHARACTER_STRIDE, SMOKE_CHARACTER_BLOCKS, \
     GAME_EVENTS_OFFSET, GAME_EVENT_COUNT, SMOKE_GAME_EVENTS, \
-    TWO_PLAYER_ONLY_TRIGGERS, TWO_PLAYER_ONLY_COND_COUNT
+    TWO_PLAYER_ONLY_TRIGGERS, TWO_PLAYER_ONLY_COND_COUNT,     CMD_STRIDE, CMD_NAME, CMD_ARG_COUNT, CMD_ARGS, CMD_OBJECT, CMD_MAX_ENTRIES,     CMD_SEARCH_SPAN, CMD_FILLER, MAX_MAP_ID, EE_RAM
 
 from .pcsx2_interface.pine import Pine
 
@@ -556,6 +556,119 @@ class MKSMInterface(GameInterface):
         self._write32(self.addresses.get("SPAWN_PARAM"), spawn)
         self._write32(self.addresses.get("PENDING_TRANSITION"), 1)
         return True
+
+    def _cstr(self, addr: int, maxlen: int = 32) -> str | None:
+        """A NUL-terminated printable-ASCII string, or None if it is not one."""
+        try:
+            raw = self._read_bytes(addr, maxlen)
+        except Exception:
+            return None
+        out = []
+        for byte in raw:
+            if byte == 0:
+                break
+            if not 0x20 <= byte < 0x7f:
+                return None
+            out.append(chr(byte))
+        return "".join(out) or None
+
+    def _looks_like_command(self, addr: int) -> bool:
+        """An entry has a name string, a small argument count, and an arg pointer."""
+        try:
+            name_ptr = self._read32(addr + CMD_NAME)
+            if name_ptr not in EE_RAM:
+                return False
+            name = self._cstr(name_ptr, 24)
+            if not name or len(name) < 3:
+                return False
+            count = self._read32(addr + CMD_ARG_COUNT)
+            args = self._read32(addr + CMD_ARGS)
+        except Exception:
+            return False
+        return 0 < count < 64 and args in EE_RAM
+
+    def find_command_table(self, hint: int | None = None) -> int | None:
+        """Where the resident room's command table starts, or None if not found.
+
+        Searched rather than assumed - see CMD_SEARCH_SPAN - which costs
+        thousands of reads over PINE, so `hint` is checked first: a room's table
+        does not move, so a base found once is good on every later visit.
+
+        A wrong base would mean writing door destinations into unrelated memory,
+        so the hint is verified like any other candidate, and None has to mean
+        "do nothing" at the call site rather than "guess".
+        """
+        if hint is not None and all(self._looks_like_command(hint + k * CMD_STRIDE)
+                                    for k in range(3)):
+            return hint
+        trigger_count = self._read32(self.addresses.get("TRIGGER_COUNT"))
+        if not 0 < trigger_count < 1000:
+            return None
+        start = TRIGGER_TABLE + trigger_count * TRIGGER_SIZE
+        for addr in range(start, start + CMD_SEARCH_SPAN, 4):
+            if all(self._looks_like_command(addr + k * CMD_STRIDE) for k in range(3)):
+                return addr
+        return None
+
+    def scan_loadmaps(self, base: int) -> list[tuple[str, int, int, int]]:
+        """Every door in the resident room: (object, dest map, spawn, args address)."""
+        found, addr, misses = [], base, 0
+        for _ in range(CMD_MAX_ENTRIES):
+            try:
+                name_ptr = self._read32(addr + CMD_NAME)
+            except Exception:
+                break
+            name = self._cstr(name_ptr, 24) if name_ptr in EE_RAM else None
+            if name is None:
+                misses += 1
+                if misses > 8:          # tolerate small holes, stop at the real end
+                    break
+            else:
+                misses = 0
+                if name == "loadmap":
+                    args = self._read32(addr + CMD_ARGS)
+                    obj_ptr = self._read32(addr + CMD_OBJECT)
+                    if args in EE_RAM:
+                        raw = self._read32(args)
+                        if raw not in CMD_FILLER and 0 < raw <= MAX_MAP_ID:
+                            obj = self._cstr(obj_ptr) if obj_ptr in EE_RAM else None
+                            found.append((obj or "?", (raw - 1) & 0xff,
+                                          self._read32(args + 4), args))
+            addr += CMD_STRIDE
+        return found
+
+    def apply_entrance_redirects(self, table: dict,
+                                 hint: int | None = None) -> tuple[int, int] | None:
+        """Point this room's doors where the seed says.
+
+        `table` is {object name: [dest map, spawn]} for the resident room.
+        Returns (values written, table base) so the caller can remember the base,
+        or None when the table could not be located - which must mean "leave the
+        room alone and try again", never "patch anyway".
+
+        Destination and spawn move together. The spawn is where you come out in
+        the new room, so leaving it at the old door's value drops you at an
+        unrelated spot there - often inside geometry with no way back out.
+
+        Writing nothing is a normal outcome: the doors are already pointing the
+        right way because this room was patched before the player left it.
+        """
+        base = self.find_command_table(hint)
+        if base is None:
+            return None
+        written = 0
+        for obj, dest, spawn, args in self.scan_loadmaps(base):
+            want = table.get(obj)
+            if want is None:
+                continue
+            new_dest, new_spawn = int(want[0]), int(want[1])
+            if new_dest != dest:
+                self._write32(args, (new_dest + 1) & 0xffffffff)
+                written += 1
+            if new_spawn != spawn:
+                self._write32(args + 4, new_spawn & 0xffffffff)
+                written += 1
+        return written, base
 
     def block_wu_shi_bridge(self) -> None:
         if self.get_current_map() != PORTAL_MAP:

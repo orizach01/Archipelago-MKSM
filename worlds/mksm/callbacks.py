@@ -62,6 +62,8 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
             # place before New Game is pressed; everything else runs once the menu is left.
             set_portal_start(ctx)
             force_ui(ctx)
+            # Loading a save rebuilds the room, so whatever was patched is gone.
+            ctx.entrances_patched_map = None
             return
         track_room(ctx)
         sync_foundry_door(ctx)
@@ -69,6 +71,7 @@ async def game_watcher(ctx: MKSMContext, ap_connected: bool) -> None:
         clear_exp(ctx)
 
         set_portal_start(ctx)
+        patch_entrances(ctx)
         gate_wu_shi_bridge(ctx)
         make_coop_single_player(ctx)
         set_character(ctx)
@@ -695,7 +698,56 @@ def make_coop_single_player(ctx: MKSMContext):
     ctx.game_interface.make_coop_single_player()
 
 
+def patch_entrances(ctx: MKSMContext) -> None:
+    """Point this room's doors where the seed says, on arrival in every room.
+
+    The command table holds only the resident room and is rebuilt from the script
+    each time one loads, so a patch does not survive leaving - and anything that
+    rebuilds the room drops it: a transition, /reload warping to the room you are
+    already in, or coming back from the menu after loading a save. Each of those
+    takes the game out of gameplay or raises the pending-transition flag, which
+    clears the mark below so the next tick in gameplay puts the doors back.
+
+    Note prev_state is no use for that: it only moves when the state changes, so
+    in a long stretch of gameplay it keeps naming whatever came before it.
+
+    Once a room is patched the work is not repeated every tick: finding its
+    command table means scanning EE RAM over PINE, which is far too slow for the
+    hot path even with the base cached.
+    """
+    redirects = ctx.slot_data.get("entrance_redirects")
+    if not redirects:
+        return
+
+    if (ctx.game_state != GameState.GAMEPLAY
+            or ctx.game_interface.is_transition_pending()):
+        ctx.entrances_patched_map = None
+        return
+
+    area = ctx.game_interface.get_current_map()
+    if area == ctx.entrances_patched_map:
+        return
+
+    table = redirects.get(f"0x{area:02x}")
+    if table is None:
+        ctx.entrances_patched_map = area        # no shuffled door in this room
+        return
+
+    result = ctx.game_interface.apply_entrance_redirects(table, ctx.cmd_table_base.get(area))
+    if result is None:
+        return      # table not located yet - the room is still building, try next tick
+    _written, base = result
+    ctx.cmd_table_base[area] = base
+    ctx.entrances_patched_map = area
+
+
 def gate_wu_shi_bridge(ctx: MKSMContext):
+    # Entrance rando forces portal_start on but has no Wu-Shi bridge to gate: the
+    # door out of the Portal leads wherever the shuffle put it, and "Wu-Shi access"
+    # is not in the pool, so blocking it here would block it for the whole seed.
+    if ctx.slot_data.get("randomize_entrances"):
+        return
+
     if not ctx.slot_data["portal_start"] or ctx.game_state != GameState.GAMEPLAY:
         return
 

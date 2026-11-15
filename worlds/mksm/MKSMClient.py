@@ -42,7 +42,7 @@ WAITING_FOR_SERVER = "Waiting for player to connect to server"
 REQUIRED_SLOT_DATA = ("character", "red_koin_amount", "red_koin_need_percent", "boss_goal",
                       "fatalitysanity", "shopsanity", "portal_start", "skip_tutorial",
                       "randomize_tournament_victories", "mana_upgrades", "lock_special_moves",
-                      "smoke_missions")
+                      "smoke_missions", "randomize_entrances")
 
 
 class MKSMCommandProcessor(ClientCommandProcessor):
@@ -177,6 +177,13 @@ class MKSMContext(SuperContext):
     received_death: bool
     message_queue: deque
     room_history: deque
+
+    # The door patcher. Finding a room's command table means scanning megabytes
+    # of EE RAM over PINE, so the base is remembered per map - it does not move
+    # for a given room - and the room we last patched is remembered so arriving
+    # somewhere does the work once instead of every tick.
+    cmd_table_base: dict[int, int]
+    entrances_patched_map: int | None
     message_timer: float | None
     current_message: str | None
     last_time: float
@@ -199,6 +206,8 @@ class MKSMContext(SuperContext):
         self.received_death = False
         self.message_queue = deque(maxlen=MAX_QUEUED_MESSAGES)
         self.room_history = deque(maxlen=MAX_ROOM_HISTORY)
+        self.cmd_table_base = {}
+        self.entrances_patched_map = None
         self.message_timer = None  # None means no message is currently being displayed
         self.current_message = None
 

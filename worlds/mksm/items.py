@@ -116,7 +116,11 @@ def create_all_items(world: MKSMWorld) -> None:
     if world.options.randomize_tournament_victories:
         itempool += [world.create_item("Tournament victory") for _ in range(TOURNAMENT_VICTORY_AMOUNT)]
 
-    if world.options.portal_start:
+    # Not under entrance rando, which forces portal_start on: the item locks the
+    # bridge out of the Portal, and with the doors shuffled that is just another
+    # door to somewhere arbitrary. Nothing in the ER graph asks for it, so adding
+    # it would put an unused progression item in the pool.
+    if world.options.portal_start and not world.options.randomize_entrances:
         itempool.append(world.create_item("Wu-Shi access"))
 
     itempool += [world.create_item("Blood bar") for _ in range(BLOOD_BAR_AMOUNT)]

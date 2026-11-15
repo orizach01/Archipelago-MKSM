@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from BaseClasses import Location, Region, LocationProgressType
+from BaseClasses import Location, Region
+from rule_builder.rules import Rule
 from .items import MKSMItem
-from .options import Character, BossGoal
+from .options import Character
 from .consts import CHARACTER_PURCHASE_AMOUNTS
 
 if TYPE_CHECKING:
@@ -72,7 +73,7 @@ REGION_NAME_LOCATIONS = {
     "Forest - Bridges": {
         "LF: koin from shooting at dragon koin": 29,
         "LF: koin from defeating Mileena": 30,
-        "LF: Mileena defeated": 31
+        "LF: Mileena defeated": 31,
     },
     "Forest - Reptile arena": {
         "LF: Reptile defeated": 32,
@@ -93,13 +94,13 @@ REGION_NAME_LOCATIONS = {
     },
     "Wasteland 3": {
         "W: koin from shooting the dragon koin": 43,
-        "W: koin from goro's arena": 44,
+        "W: koin from Goro's arena": 44,
         "W: Goro defeated": 45,
         "W: Double jump obtained": 46
     },
     "Dead Pool": {
-        "DP: koin from drowning enemies in both pools": 47,
-        "DP: swing obtained": 48
+        "DP: koin from drowning enemies in the pool": 47,
+        "DP: swing obtained": 48,
     },
     "Tombs": {
         "ST: koin from shooting the dragon koin near the portal": 49,
@@ -141,7 +142,7 @@ REGION_NAME_LOCATIONS = {
         "F: koin behind the fire": 76,
         "F: koin from shooting the dragon koin behind the breakable wall": 77,
         "F: koin above the lava pit": 78,
-        "F: koin from smash an enemy with the big hammers": 79,
+        "F: koin from smashing an enemy with the big hammers": 79,
         "F: koin from breaking the pipe with the axe": 80,
         "F: Kano defeated": 81,
         "F: Shao Kahn defeated": 82,
@@ -235,8 +236,8 @@ LOCATION_NAME_TO_ID = {loc: loc_id for k, v in REGION_NAME_LOCATIONS.items() for
 LOCATION_NAME_TO_ID |= {loc: loc_id for k, v in FINISHING_MOVES_LOCATIONS.items() for loc, loc_id in v.items()}
 LOCATION_NAME_TO_ID |= PURCHASE_LOCATIONS
 
-# Smoke is met in the Forest; only created with the smoke_missions option
-SMOKE_MISSION_REGION = "Forest"
+# Smoke is met in the Forest; only created with the smoke_missions option.
+# Which region that is depends on the layout, so each one names its own.
 SMOKE_MISSION_LOCATIONS = {
     "Complete Smoke mission 1": 300,
     "Complete Smoke mission 2": 301,
@@ -251,24 +252,25 @@ class MKSMLocation(Location):
     game = "Mortal Kombat: Shaolin Monks"
 
 
-def create_all_locations(world: MKSMWorld) -> None:
-    create_region_locations(world)
-    create_event_locations(world)
+def add_named(region: Region, names: "tuple[str, ...]") -> None:
+    """Add locations to a region by name, taking their ids from LOCATION_NAME_TO_ID.
 
+    A layout decides where a location goes; it never decides what its id is -
+    location_name_to_id is the datapackage and has to be the same in every seed.
+    """
+    region.add_locations({name: LOCATION_NAME_TO_ID[name] for name in names}, MKSMLocation)
+
+
+def create_shared_locations(world: MKSMWorld) -> None:
+    """The locations that do not depend on the layout.
+
+    Both sets go on origin_region_name, which is "Menu" in either layout, so
+    they are created the same way whatever the shape of the graph.
+    """
     if world.options.shopsanity:
         create_purchase_locations(world)
     if world.options.fatalitysanity:
         create_finishing_moves_locations(world)
-    if world.options.smoke_missions:
-        world.get_region(SMOKE_MISSION_REGION).add_locations(SMOKE_MISSION_LOCATIONS, MKSMLocation)
-
-
-def create_region_locations(world: MKSMWorld) -> None:
-    for region_name in REGION_NAME_LOCATIONS:
-        region = world.get_region(region_name)
-        region_locations = REGION_NAME_LOCATIONS[region_name]
-
-        region.add_locations(region_locations, MKSMLocation)
 
 
 def create_purchase_locations(world: MKSMWorld) -> None:
@@ -298,90 +300,25 @@ def create_finishing_moves_locations(world: MKSMWorld) -> None:
     menu.add_locations(FINISHING_MOVES_LOCATIONS[current_character], MKSMLocation)
 
 
-def create_event_locations(world: MKSMWorld) -> None:
-    wu_shi_ermac: Region = world.get_region("Wu-Shi - Ermac arena")
-    monastery_kitana: Region = world.get_region("Monastery - Kitana arena")
-    forest_reptile: Region = world.get_region("Forest - Reptile arena")
-    forest_bridges: Region = world.get_region("Forest - Bridges")
-    tombs_baraka: Region = world.get_region("Tombs - Baraka arena")
-    wasteland_3: Region = world.get_region("Wasteland 3")
-    netherrealm: Region = world.get_region("Netherrealm")
-    foundry: Region = world.get_region("Foundry")
+def event(region: Region, name: str, rule: Rule | None = None) -> None:
+    """Add an event item `name`, on a location called "<name> event".
 
-    if world.options.boss_goal >= BossGoal.option_shao_kahn_only:
-        foundry.add_event(
-            location_name="Shao Kahn defeated event",
-            item_name="Shao Kahn defeated item",
-            location_type=MKSMLocation,
-            item_type=MKSMItem,
-            show_in_spoiler=False
-        )
+    The item name is the one rules refer to, so it reads as the thing itself:
+    Has("Tombs fan destroyed"). The location only exists to hold it, hence the
+    suffix. The boss events in the vanilla layout are spelled out by hand rather
+    than built here, but they follow the same convention, so a rule naming one
+    holds whichever layout built the seed.
 
-    if world.options.boss_goal >= BossGoal.option_main_bosses or not world.options.randomize_tournament_victories:
-        monastery_kitana.add_event(
-            location_name="Kitana defeated event",
-            item_name="Kitana defeated item",
-            location_type=MKSMLocation,
-            item_type=MKSMItem,
-            show_in_spoiler=False
-        )
-
-        forest_reptile.add_event(
-            location_name="Reptile defeated event",
-            item_name="Reptile defeated item",
-            location_type=MKSMLocation,
-            item_type=MKSMItem,
-            show_in_spoiler=False
-        )
-
-        tombs_baraka.add_event(
-            location_name="Baraka defeated event",
-            item_name="Baraka defeated item",
-            location_type=MKSMLocation,
-            item_type=MKSMItem,
-            show_in_spoiler=False
-
-        )
-
-        wasteland_3.add_event(
-            location_name="Goro defeated event",
-            item_name="Goro defeated item",
-            location_type=MKSMLocation,
-            item_type=MKSMItem,
-            show_in_spoiler=False
-
-        )
-
-        netherrealm.add_event(
-            location_name="Scorpion defeated event",
-            item_name="Scorpion defeated item",
-            location_type=MKSMLocation,
-            item_type=MKSMItem,
-            show_in_spoiler=False
-
-        )
-
-    if world.options.boss_goal >= BossGoal.option_main_and_secret_bosses:
-        wu_shi_ermac.add_event(
-            location_name="Ermac defeated event",
-            item_name="Ermac defeated item",
-            location_type=MKSMLocation,
-            item_type=MKSMItem,
-            show_in_spoiler=False
-        )
-
-        forest_bridges.add_event(
-            location_name="Mileena defeated event",
-            item_name="Mileena defeated item",
-            location_type=MKSMLocation,
-            item_type=MKSMItem,
-            show_in_spoiler=False
-        )
-
-        foundry.add_event(
-            location_name="Kano defeated event",
-            item_name="Kano defeated item",
-            location_type=MKSMLocation,
-            item_type=MKSMItem,
-            show_in_spoiler=False
-        )
+    `rule` is what it takes to DO the thing, over and above reaching the region:
+    0x04's soul tomb needs Fist of Ruin to smash. Put it here rather than on the
+    door the event opens, so the requirement is stated once no matter how many
+    doors come to depend on it.
+    """
+    region.add_event(
+        location_name=f"{name} event",
+        item_name=name,
+        rule=rule,
+        location_type=MKSMLocation,
+        item_type=MKSMItem,
+        show_in_spoiler=False,
+    )

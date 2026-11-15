@@ -2,7 +2,24 @@ import struct
 from dataclasses import dataclass
 from enum import Enum
 
+from rule_builder.rules import Has, Rule
+
 from .options import Character
+
+# The movement abilities and blood bar, as rules. Here rather than in rules.py
+# because regions.py and locations.py need them too, and rules.py imports
+# locations.py - so anything those two share has to live somewhere all three can
+# import. Everything that needs an option filter stays in rules.py.
+DOUBLE_JUMP: Rule = Has("Double Jump")
+WALL_RUN: Rule = Has("Wall Run")
+WALL_JUMP: Rule = Has("Wall Jump")
+WALL_CLIMB: Rule = Has("Wall Climb")
+SWING: Rule = Has("Swing")
+LONG_JUMP: Rule = Has("Long Jump")
+FIST_OF_RUIN: Rule = Has("Fist of Ruin")
+FATALITY: Rule = Has("Blood bar", count=1)
+MULTALITY: Rule = Has("Blood bar", count=2)
+BRUTALITY: Rule = Has("Blood bar", count=3)
 
 
 @dataclass(frozen=True)
@@ -117,10 +134,10 @@ ADDRESSES = {
 
             # Wasteland 3
             "W: koin from shooting the dragon koin": {0x005d828f: [5, 6, 7], 0x005d8290: [0, 1], 0x005d82aa: [3]},
-            "W: koin from goro's arena": {0x005d8295: [2, 3], 0x005d82a8: [0]},
+            "W: koin from Goro's arena": {0x005d8295: [2, 3], 0x005d82a8: [0]},
 
             # Dead Pool
-            "DP: koin from drowning enemies in both pools": {0x005d828e: [2, 3, 4, 5, 6], 0x005d82a6: [2],
+            "DP: koin from drowning enemies in the pool": {0x005d828e: [2, 3, 4, 5, 6], 0x005d82a6: [2],
                                                              0x005d82a7: [4]},
 
             # Tombs
@@ -169,7 +186,7 @@ ADDRESSES = {
             },
             "F: koin above the lava pit": {0x005d828a: [2], 0x005d8299: [4, 5, 6, 7], 0x005d829a: [0],
                                            0x005d82a8: [3]},
-            "F: koin from smash an enemy with the big hammers": {0x005d829c: [3, 4, 5, 6], 0x005d82a2: [4, 5, 6, 7]},
+            "F: koin from smashing an enemy with the big hammers": {0x005d829c: [3, 4, 5, 6], 0x005d82a2: [4, 5, 6, 7]},
             "F: koin from breaking the pipe with the axe": {0x005d8296: [4, 5, 6, 7], 0x005d82a3: [0, 1, 2],
                                                             0x005d82a6: [6]},
 
@@ -538,8 +555,9 @@ WASTELAND_EVENTS = [
 #
 # (0x6b, 0x3d): arriving at 0x6b spawn 2 plays a cutscene that immediately ejects you to
 # the Portal (0xc0), so the mouth cannot be stood in at all. Nothing a player holds stops
-# a cutscene, so there is no rule to write. Already in WU_SHI_SKIP_EVENTS, but that list
-# only applies when portal_start is on, and this has to hold either way.
+# a cutscene, so there is no rule to write. Also in WU_SHI_SKIP_EVENTS, which only runs
+# when portal_start is on and entrances are not shuffled - and this has to hold either
+# way, which is why it is listed here too.
 #
 # (0x80, 0x0e): a wall of bramble in the Living Forest entrance, cleared by trigger 0x0e.
 # This one is a rule-complexity call rather than an impossibility. Getting back to the
@@ -569,19 +587,28 @@ def default_event_array(slot_data):
         default += MOON_KOIN_EVENTS
     if character.is_vs():
         default += SHOOTING_KOIN_EVENTS
-    if portal_start or skip_tutorial:
-        default += GOROS_LAIR_SKIP_EVENTS
-    if portal_start:
-        default += WU_SHI_SKIP_EVENTS
-    # .get, not [], because the entrance-randomization option does not exist yet: this
-    # stays inert until it does, rather than breaking every seed in the meantime.
-    if slot_data.get("randomize_entrances"):
-        # Skip what another list already added - (0x6b, 0x3d) is also in
-        # WU_SHI_SKIP_EVENTS, and a duplicate would waste a slot in the log the
-        # game itself would never write, since its own append dedupes.
+    # .get, not [], for a slot made before the option existed.
+    entrance_rando = slot_data.get("randomize_entrances")
+
+    if entrance_rando:
+        # No skip lists. Both of them pre-clear rooms on the way to somewhere, and
+        # with the doors shuffled there is no "on the way" - a skipped room may be
+        # one the seed routes you through later, or never. Pre-clearing it would
+        # spend progress, and a log slot, on content the player has not reached.
+        # Portal start is forced on here (see generate_early), so this is the one
+        # place that would otherwise add them.
+        #
+        # ENTRANCE_RANDO_EVENTS still goes in, and carries (0x6b, 0x3d) - the
+        # cutscene that ejects you from 0x6b spawn 2 - which has to hold either
+        # way and until now came in via WU_SHI_SKIP_EVENTS.
         have = set(chunk_events(default))
         default += flatten_events([e for e in chunk_events(ENTRANCE_RANDO_EVENTS)
                                    if e not in have])
+    else:
+        if portal_start or skip_tutorial:
+            default += GOROS_LAIR_SKIP_EVENTS
+        if portal_start:
+            default += WU_SHI_SKIP_EVENTS
 
     return default
 
@@ -761,6 +788,31 @@ PORTAL_MAP = 0xc0
 PORTAL_TRIGGER_COUNT = 0x73
 # The Wu-Shi bridge trigger's command count before the client blocks it
 WU_SHI_BRIDGE_CMD_COUNT = 5
+
+# The per-room command table: every scripted command in the resident room, including
+# the `loadmap` ones that are its doors. An entry is:
+#     +0x04  -> command name string   ("loadmap" for a transition)
+#     +0x08     argument count
+#     +0x0c  -> argument array        args[0] = destination map + 1
+#                                     args[1] = the spawn you land on
+#     +0x18  -> object name string    ("wushiload", "map102_to_108", ...)
+# The table holds only the resident room and is rebuilt on every room load, so a
+# patch lives until you walk through a door and has to be reapplied after.
+CMD_STRIDE = 0x1c
+CMD_NAME = 0x04
+CMD_ARG_COUNT = 0x08
+CMD_ARGS = 0x0c
+CMD_OBJECT = 0x18
+CMD_MAX_ENTRIES = 600
+# Its address is not fixed: it sits some way past the trigger table and the distance
+# differs per room (0x6518 in the Portal, 0x2654 in Goro's Lair), so it is searched
+# for rather than assumed. The stride is not 4-aligned, so every phase has to be tried.
+CMD_SEARCH_SPAN = 0x12000
+# Unpopulated script memory is filled with these; without the check they decode as a
+# door to map 0xcc.
+CMD_FILLER = (0xcdcdcdcd, 0xcccccccc)
+MAX_MAP_ID = 0xd0
+EE_RAM = range(0x00100000, 0x02000000)
 
 # Room trigger table (see TRIGGER_COUNT): entry i is at TRIGGER_TABLE + i * TRIGGER_SIZE.
 TRIGGER_TABLE = 0x738a70

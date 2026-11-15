@@ -1,27 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from BaseClasses import CollectionRule
 from rule_builder.options import OptionFilter
-from rule_builder.rules import Has, Rule, CanReachRegion, CanReachLocation
-from .consts import TOURNAMENT_VICTORY_AMOUNT
+from rule_builder.rules import AtLeast, Has, Rule
+from .consts import (TOURNAMENT_VICTORY_AMOUNT, DOUBLE_JUMP, WALL_RUN, WALL_JUMP,
+                     WALL_CLIMB, SWING, LONG_JUMP, FIST_OF_RUIN, FATALITY,
+                     MULTALITY, BRUTALITY)
 from .locations import FINISHING_MOVES_LOCATIONS
-from .options import BossGoal, Shopsanity, RandomizeTournamentVictories, PortalStart, LockSpecialMoves, Character
+from .options import (BossGoal, Shopsanity, RandomizeTournamentVictories, PortalStart,
+                      LockSpecialMoves, Character)
 
 if TYPE_CHECKING:
     from .world import MKSMWorld
 
-DOUBLE_JUMP: Rule = Has("Double Jump")
-WALL_RUN: Rule = Has("Wall Run")
-WALL_JUMP: Rule = Has("Wall Jump")
-WALL_CLIMB: Rule = Has("Wall Climb")
-SWING: Rule = Has("Swing")
-LONG_JUMP: Rule = Has("Long Jump")
-FIST_OF_RUIN: Rule = Has("Fist of Ruin")
-FATALITY: Rule = Has("Blood bar", count=1)
-MULTALITY: Rule = Has("Blood bar", count=2)
-BRUTALITY: Rule = Has("Blood bar", count=3)
 # Needs R2 upgraded twice. With lock_special_moves the first R2 item only unlocks the move;
 # with shopsanity off the upgrades are bought in the shop, so only the unlock is an item.
 LAUNCHING_THROW = (
@@ -68,15 +61,17 @@ ANY_PROJECTILE_MOVE = (
            | _move_unlock("Circle special upgrade", [Character.option_reptile]))
 )
 
-KITANA = Has("Kitana defeated item")
-REPTILE = Has("Reptile defeated item")
-BARAKA = Has("Baraka defeated item")
-GORO = Has("Goro defeated item")
-SCORPION = Has("Scorpion defeated item")
-ERMAC = Has("Ermac defeated item")
-MILEENA = Has("Mileena defeated item")
-KANO = Has("Kano defeated item")
-SHAO_KAHN = Has("Shao Kahn defeated item")
+# The boss events. Both layouts name them the same way - "<boss> defeated", the
+# thing itself - so these work whichever one built the seed.
+KITANA = Has("Kitana defeated")
+REPTILE = Has("Reptile defeated")
+BARAKA = Has("Baraka defeated")
+GORO = Has("Goro defeated")
+SCORPION = Has("Scorpion defeated")
+ERMAC = Has("Ermac defeated")
+MILEENA = Has("Mileena defeated")
+KANO = Has("Kano defeated")
+SHAO_KAHN = Has("Shao Kahn defeated")
 
 TOURNAMENT_VICTORY_RULE = Has("Tournament victory",
                               count=TOURNAMENT_VICTORY_AMOUNT,
@@ -92,24 +87,45 @@ WU_SHI_RULE = Has("Wu-Shi access",
 
 
 def set_all_rules(world: MKSMWorld) -> None:
+    """Every rule that does not name a region.
+
+    The ones that do - the purchase tiers and the Smoke missions - need a region
+    set to name, so each layout supplies its own and calls the helpers below.
+    """
     set_all_location_rules(world)
-    connect_regions(world)
     set_completion_condition(world)
-    set_purchase_rules(world)
     set_finishing_moves_rules(world)
-    set_smoke_mission_rules(world)
 
 
-PURCHASE_REGIONS = ("Monastery", "Forest", "Tombs", "Netherrealm", "Wasteland 1")
+# Which room regions each vanilla region covers. create_vanilla_regions makes one
+# region per area and create_er_regions one per room, so "can reach this area"
+# has two spellings and a rule that names only one of them breaks the other mode.
+#
+# Mind the splits: vanilla's "Tombs" is not the same region as "Tombs - Baraka
+# arena", so 0x0f belongs to the second, and Wu-Shi is four regions, not one.
+# The room region's own name prefix does not say which of them it maps to.
 
 
-def can_reach_at_least(count: int, player: int, region_names: tuple[str, ...]) -> CollectionRule:
-    if count <= 0:
-        return lambda state: True
-    return lambda state: sum(state.can_reach_region(name, player) for name in region_names) >= count
+# What each Smoke mission takes, as rules rather than as "can reach the location
+# before it". Written once and used twice: by the mission locations, and by the
+# doors that only open once a mission is done - 0x06's smoke door needs mission 2.
+#
+# Not CanReachLocation, for three reasons. The locations only exist when the
+# smoke_missions option is on, so a rule naming one raises during create_regions
+# in every other seed. CanReachLocation means "could reach", not "did", which is
+# a poor fit for a door that physically opens on completion. And on an entrance
+# it would need its indirect condition registered, which these do not.
 
+def set_purchase_rules(world: MKSMWorld, tier_rule: "Callable[[int], Rule]") -> None:
+    """Price the shop by how much of the game is open.
 
-def set_purchase_rules(world: MKSMWorld) -> None:
+    The shop costs EXP, which logic cannot count, so each tier stands for "you
+    have plausibly earned this much by now, buying cheapest first". How to
+    measure that depends on the layout - areas opened in vanilla, rooms reached
+    with entrances shuffled - so the layout passes in `tier_rule`, which turns a
+    tier number into the rule for it. Which purchase sits in which tier is the
+    same either way, so the table below stays here.
+    """
     tiers = {
         0: [
             "Purchase upgrade - R2 2",
@@ -141,7 +157,7 @@ def set_purchase_rules(world: MKSMWorld) -> None:
     }
 
     for tier, loc_names in tiers.items():
-        rule = can_reach_at_least(tier, world.player, PURCHASE_REGIONS)
+        rule = tier_rule(tier)
         for loc_name in loc_names:
             try:
                 loc = world.get_location(loc_name)
@@ -173,10 +189,12 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     world.set_rule(world.get_location("LF: Forest health upgrade"), WALL_CLIMB | DOUBLE_JUMP)
     world.set_rule(world.get_location("LF: koin from shooting the closed eye"), PROJECTILE_MOVE)
     world.set_rule(world.get_location("LF: koin from shooting at dragon koin"), PROJECTILE_MOVE)
+    world.set_rule(world.get_location("W: koin from impaling an enemy on the big spike"),
+                   WALL_CLIMB | DOUBLE_JUMP | LONG_JUMP)
     world.set_rule(world.get_location("W: koin found on the lion statue"), DOUBLE_JUMP | WALL_RUN)
     world.set_rule(world.get_location("W: koin from shooting the dragon koin"), PROJECTILE_MOVE)
     world.set_rule(
-        world.get_location("DP: koin from drowning enemies in both pools"),
+        world.get_location("DP: koin from drowning enemies in the pool"),
         WALL_CLIMB | (WALL_JUMP & DOUBLE_JUMP)
     )
     world.set_rule(world.get_location("ST: koin above Baraka's entrance"), WALL_RUN & DOUBLE_JUMP)
@@ -196,6 +214,9 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     world.set_rule(world.get_location("ST: koin from shooting the dragon koin near the portal"), PROJECTILE_MOVE)
     world.set_rule(world.get_location("ST: koin from shooting the dragon koin in the test your might room"),
                    PROJECTILE_MOVE)
+    world.set_rule(world.get_location("F: koin from smashing an enemy with the big hammers"),
+                   LAUNCHING_THROW)
+    world.set_rule(world.get_location("F: koin from breaking the pipe with the axe"), DOUBLE_JUMP)
     world.set_rule(world.get_location("F: koin from wall jumping above the main room"), WALL_JUMP & DOUBLE_JUMP)
     world.set_rule(
         world.get_location("F: koin above the wood ceiling"),
@@ -203,76 +224,7 @@ def set_all_location_rules(world: MKSMWorld) -> None:
     )
     world.set_rule(world.get_location("F: koin above the lava pit"), DOUBLE_JUMP)
     world.set_rule(world.get_location("F: koin from shooting the dragon koin behind the breakable wall"),
-                   PROJECTILE_MOVE)
-
-
-def connect_regions(world: MKSMWorld) -> None:
-    menu = world.get_region("Menu")
-    goros_lair_1 = world.get_region("Goro's Lair 1")
-    goros_lair_2 = world.get_region("Goro's Lair 2")
-    goros_lair_boss = world.get_region("Goro's Lair - Boss arena")
-    wu_shi = world.get_region("Wu-Shi")
-    wu_shi_ermac = world.get_region("Wu-Shi - Ermac arena")
-    wu_shi_fire = world.get_region("Wu-Shi - Fire")
-    wu_shi_wallrun = world.get_region("Wu-Shi - Wall Run area")
-    portal_1 = world.get_region("Portal 1")
-    portal_2 = world.get_region("Portal 2")
-    monastery = world.get_region("Monastery")
-    monastery_kitana = world.get_region("Monastery - Kitana arena")
-    forest = world.get_region("Forest")
-    forest_bridges = world.get_region("Forest - Bridges")
-    forest_reptile = world.get_region("Forest - Reptile arena")
-    tombs = world.get_region("Tombs")
-    tombs_baraka = world.get_region("Tombs - Baraka arena")
-    wasteland_1 = world.get_region("Wasteland 1")
-    wasteland_2 = world.get_region("Wasteland 2")
-    wasteland_3 = world.get_region("Wasteland 3")
-    dead_pool = world.get_region("Dead Pool")
-    netherrealm = world.get_region("Netherrealm")
-    foundry = world.get_region("Foundry")
-
-    if world.options.portal_start:
-        menu.connect(portal_1)
-    else:
-        menu.connect(goros_lair_1)
-
-    goros_lair_1.connect(goros_lair_boss)
-    goros_lair_1.connect(goros_lair_2, rule=LONG_JUMP | DOUBLE_JUMP)
-    goros_lair_2.connect(wu_shi)
-    goros_lair_2.connect(goros_lair_boss)
-    goros_lair_boss.connect(goros_lair_1, rule=LONG_JUMP | DOUBLE_JUMP)
-
-    wu_shi.connect(wu_shi_ermac, rule=FIST_OF_RUIN & SWING)
-    wu_shi.connect(wu_shi_fire)
-    wu_shi_fire.connect(wu_shi_wallrun, rule=FIST_OF_RUIN)
-    wu_shi.connect(portal_1)
-    wu_shi.connect(goros_lair_2, rule=FIST_OF_RUIN)
-
-    portal_1.connect(wu_shi, rule=WU_SHI_RULE)
-    portal_1.connect(portal_2)
-
-    portal_2.connect(netherrealm, rule=SWING & (DOUBLE_JUMP | WALL_RUN))
-
-    portal_1.connect(forest, rule=FIST_OF_RUIN)
-    forest.connect(forest_bridges, rule=SWING & WALL_CLIMB)
-    forest.connect(forest_reptile, rule=LONG_JUMP | DOUBLE_JUMP)
-
-    portal_2.connect(wasteland_1, rule=WALL_CLIMB & (WALL_JUMP | (WALL_RUN & DOUBLE_JUMP)))
-    wasteland_1.connect(wasteland_2, rule=FIST_OF_RUIN)
-    wasteland_2.connect(wasteland_3, rule=WALL_RUN)
-    wasteland_2.connect(dead_pool)
-
-    portal_1.connect(tombs, rule=WALL_CLIMB)
-    tombs.connect(tombs_baraka, rule=FIST_OF_RUIN & ANY_PROJECTILE_MOVE)
-    tombs_baraka.connect(wu_shi)
-
-    portal_1.connect(monastery, rule=DOUBLE_JUMP | LONG_JUMP)
-    monastery.connect(monastery_kitana)
-
-    portal_2.connect(
-        foundry,
-        rule=FOUNDRY_RULE,
-    )
+                   PROJECTILE_MOVE & FIST_OF_RUIN)
 
 
 def set_finishing_moves_rules(world: MKSMWorld) -> None:
@@ -293,19 +245,13 @@ def set_finishing_moves_rules(world: MKSMWorld) -> None:
             world.set_rule(loc, BRUTALITY)
 
 
-def set_smoke_mission_rules(world: MKSMWorld):
+def set_smoke_mission_rules(world: MKSMWorld, smoke: "tuple[Rule, ...]") -> None:
+    """`smoke` is what each of the five missions takes, in order, from the layout."""
     if not world.options.smoke_missions:
         return
 
-    world.set_rule(world.get_location("Complete Smoke mission 1"), CanReachRegion("Tombs"))
-    world.set_rule(world.get_location("Complete Smoke mission 2"),
-                   CanReachLocation("Complete Smoke mission 1") & CanReachRegion("Wu-Shi") & FIST_OF_RUIN)
-    world.set_rule(world.get_location("Complete Smoke mission 3"),
-                   CanReachLocation("Complete Smoke mission 2") & CanReachRegion("Tombs"))
-    world.set_rule(world.get_location("Complete Smoke mission 4"),
-                   CanReachLocation("Complete Smoke mission 3") & CanReachRegion("Monastery"))
-    world.set_rule(world.get_location("Complete Smoke mission 5"),
-                   CanReachLocation("Complete Smoke mission 4"))
+    for n, rule in enumerate(smoke, start=1):
+        world.set_rule(world.get_location(f"Complete Smoke mission {n}"), rule)
 
 
 def set_completion_condition(world: MKSMWorld) -> None:

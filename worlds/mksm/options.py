@@ -151,6 +151,20 @@ class ManaUpgrades(DefaultOnToggle):
     display_name = "Mana Upgrades"
 
 
+class RandomizeEntrances(Toggle):
+    """
+    If on, the doors between rooms are shuffled: every doorway is paired with another one,
+    both ways, so walking through a door can put you anywhere in the game.
+
+    A handful of doors stay vanilla because the game cannot cope with moving them:
+    the Kitana cutscene, the final boss door, and the three hub portals that only
+    appear once you have walked through them from the far side.
+
+    Still in development - expect a bumpier seed than with it off.
+    """
+    display_name = "Randomize Entrances"
+
+
 @dataclass
 class MKSMOptions(PerGameCommonOptions):
     character: Character
@@ -164,6 +178,7 @@ class MKSMOptions(PerGameCommonOptions):
     skip_tutorial: SkipTutorial
     randomize_tournament_victories: RandomizeTournamentVictories
     mana_upgrades: ManaUpgrades
+    randomize_entrances: RandomizeEntrances
 
 
 OPTION_GROUPS = [
@@ -172,6 +187,7 @@ OPTION_GROUPS = [
         RandomizeTournamentVictories,
         SkipTutorial,
         PortalStart,
+        RandomizeEntrances,
     ]),
     OptionGroup("Goals", [
         RedKoinPercent,
